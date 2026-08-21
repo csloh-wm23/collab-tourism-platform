@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/env.php';
+
 function database(): PDO
 {
     static $connection = null;
@@ -14,6 +16,7 @@ function database(): PDO
     $name = getenv('DB_NAME') ?: 'jomcommunicate';
     $user = getenv('DB_USER') ?: 'root';
     $pass = getenv('DB_PASS') ?: '';
+
     $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
     $connection = new PDO($dsn, $user, $pass, [

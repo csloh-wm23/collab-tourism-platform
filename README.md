@@ -1,68 +1,74 @@
-# JomCommunicate
+# JomCommunicate — fixed implementation
 
-JomCommunicate is a collaborative multilingual tourism platform. This version is intentionally written using the technologies taught in class: HTML5, CSS3, Bootstrap 5, vanilla JavaScript, PHP 8+, and MySQL/MariaDB.
+JomCommunicate is a PHP 8 + MySQL tourism communication system based on the Malaysia Language Real-time Communication System proposal.
 
-There is no TypeScript, React, Next.js, Node.js build step, or npm dependency.
+## What this version fixes/adds
 
-## Features
+- tourist and tourism-business registration
+- login/logout with PHP sessions and password hashing
+- role-based navigation for tourist, business, editor and admin users
+- business registration approval flow
+- user-scoped translation history (one user cannot read/delete another user's history)
+- CSRF protection on state-changing API requests
+- translation history now actually saves `translation` records
+- prevents saving a phrase after changing the source text without translating again
+- correct speech-recognition locale mapping for English, Malay, Mandarin and Malaysian Tamil
+- secure Azure Speech TTS endpoint in PHP
+- Malay Azure voice: `ms-MY-YasminNeural`
+- Malaysian Tamil Azure voice: `ta-MY-KaniNeural`
+- business profile writes to the `businesses` table
+- business phrases write to `business_phrases`
+- guest access still works using browser localStorage
 
-- text translation demo with English, Bahasa Melayu, Mandarin and Tamil examples
-- browser speech recognition and text-to-speech
-- local glossary and guided tourism scenarios
-- emergency and dietary assistance
-- business profile, phrases and visitor QR area
-- saved phrases and privacy choices
-- tourism insight and administration dashboards
-- PHP JSON API with prepared SQL statements
-- automatic localStorage fallback when MySQL is not connected
-- responsive desktop and mobile layout
+## 1. Install with XAMPP
 
-## Run with XAMPP
+1. Copy the project folder to:
+   `C:\xampp\htdocs\jomcommunicate`
+2. Start Apache and MySQL.
+3. Import `database/jomcommunicate.sql` in phpMyAdmin.
+4. Copy `.env.example` to `.env`.
+5. Open `http://localhost/jomcommunicate/`.
 
-1. Install and open XAMPP.
-2. Start **Apache** and **MySQL**.
-3. Copy this project folder to `C:\xampp\htdocs\jomcommunicate` on Windows or `/Applications/XAMPP/htdocs/jomcommunicate` on macOS.
-4. Open `http://localhost/phpmyadmin`.
-5. Select **Import**, choose `database/jomcommunicate.sql`, then run the import.
-6. Open `http://localhost/jomcommunicate/`.
+## 2. Create the first administrator
 
-XAMPP normally uses MySQL user `root` with a blank password, which is already the default in `config/database.php`. If your settings differ, set the environment variables shown in `.env.example` or change the local values in `config/database.php`. Never commit a real password.
+Open a terminal in the project folder and run:
 
-## Project structure
-
-```text
-jomcommunicate/
-├── api/records.php          # GET, POST and DELETE JSON endpoint
-├── assets/css/styles.css    # responsive interface
-├── assets/js/app.js         # navigation, translation and interactions
-├── config/database.php      # PDO connection
-├── database/jomcommunicate.sql
-├── index.php                # main application page
-└── README.md
+```powershell
+C:\xampp\php\php.exe scripts\create_admin.php "System Admin" admin@jom.local "ChangeMe123!"
 ```
 
-## Database API
+Then log in with that email and password.
 
-- `GET api/records.php` — list recent records
-- `GET api/records.php?type=phrase` — filter by type
-- `POST api/records.php` — save a JSON record
-- `DELETE api/records.php?id=1` — delete a record
+## 3. Configure Azure Speech
 
-Allowed record types are `translation`, `phrase`, `report`, `business`, `emergency`, and `consent`.
+Create an Azure Speech resource, then open `.env` and set:
 
-## Translation service
+```env
+AZURE_SPEECH_KEY=YOUR_REAL_KEY
+AZURE_SPEECH_REGION=southeastasia
+```
 
-The included translator is a small JavaScript demonstration dictionary, so the project works without an API key. For production, create a server-side PHP endpoint for Google Cloud Translation and keep its API key outside the repository in an environment variable. Do not put API keys in JavaScript.
+Use the exact region shown for your Azure Speech resource. Do not commit `.env`.
 
-## Browser support
+The browser sends translated text to `api/speech.php`. PHP keeps the Azure key on the server, sends SSML to Azure, receives MP3 audio, and returns it to the browser.
 
-The interface works in current Chrome, Edge, Firefox and Safari. Speech recognition support is best in Chrome or Edge. Text-to-speech has wider browser support.
+## Important translation note
 
-## Team workflow
+This package fixes voice output, authentication and the concrete bugs found in the original repository. The actual text translator is still the small demo dictionary from the prototype. For production-quality arbitrary translation, add the proposed Google Cloud Translation API (or another translation API) as a separate server-side endpoint.
 
-1. Create a branch: `git switch -c feature/short-name`
-2. Make and test a small change.
-3. Commit it: `git commit -m "Describe the change"`
-4. Push the branch and open a pull request.
+## Roles
 
-Do not commit database passwords, API keys, XAMPP logs, or personal visitor information.
+- Guest: communication + local browser history
+- Tourist: communication + private server-side history
+- Business: communication + business portal; initial registration is `pending`
+- Editor: insights
+- Admin: admin approvals + business/insight access
+
+## Security notes
+
+- passwords use `password_hash()` / `password_verify()`
+- sessions use HttpOnly and SameSite=Lax cookies
+- database operations use PDO prepared statements
+- API history is scoped to the logged-in user
+- write requests use CSRF tokens
+- Azure key stays in `.env`, which is ignored by Git

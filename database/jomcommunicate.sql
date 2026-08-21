@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS business_phrases (
   target_language VARCHAR(12) NOT NULL DEFAULT 'ms',
   source_text VARCHAR(500) NOT NULL,
   translated_text VARCHAR(500) NOT NULL,
-  category VARCHAR(80) NOT NULL,
+  category VARCHAR(80) NOT NULL DEFAULT 'General',
   is_published TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_phrase_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS records (
   content TEXT NOT NULL,
   metadata JSON NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_records_user_created (user_id, created_at),
   INDEX idx_records_type_created (record_type, created_at),
   CONSTRAINT fk_record_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
@@ -93,12 +94,3 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   INDEX idx_audit_created (created_at),
   CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
-
-INSERT INTO businesses (name, category, address, description, verification_status, qr_slug)
-SELECT 'Warung Harmoni', 'Food & drink', '24 Jalan Alor, Bukit Bintang, Kuala Lumpur', 'Friendly local food with multilingual visitor support.', 'approved', 'warung-harmoni'
-WHERE NOT EXISTS (SELECT 1 FROM businesses WHERE qr_slug = 'warung-harmoni');
-
-INSERT INTO business_phrases (business_id, source_text, translated_text, category)
-SELECT id, 'Please order at the counter', 'Sila pesan di kaunter', 'Service'
-FROM businesses WHERE qr_slug = 'warung-harmoni'
-AND NOT EXISTS (SELECT 1 FROM business_phrases WHERE source_text = 'Please order at the counter');
