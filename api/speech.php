@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 header('Cache-Control: no-store');
 
-require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../config/auth.php';
 
 function fail_json(string $message, int $status): never {
     http_response_code($status);
@@ -13,8 +13,23 @@ function fail_json(string $message, int $status): never {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    header('Allow: POST');
     fail_json('Method not allowed.', 405);
 }
+
+// A small per-session rolling limit is appropriate for this student project
+// and also covers guests without collecting their conversation text.
+$now = time();
+$recent = array_values(array_filter(
+    is_array($_SESSION['speech_requests'] ?? null) ? $_SESSION['speech_requests'] : [],
+    static fn($timestamp): bool => is_int($timestamp) && $timestamp > $now - 60
+));
+if (count($recent) >= 10) {
+    header('Retry-After: 60');
+    fail_json('Too many speech requests. Please wait a minute and try again.', 429);
+}
+$recent[] = $now;
+$_SESSION['speech_requests'] = $recent;
 
 $input = json_decode((string)file_get_contents('php://input'), true);
 if (!is_array($input)) {
@@ -42,6 +57,10 @@ $key = trim((string)(getenv('AZURE_SPEECH_KEY') ?: ''));
 $region = trim((string)(getenv('AZURE_SPEECH_REGION') ?: ''));
 
 if ($key === '' || $region === '') {
+    fail_json('Azure Speech is not configured on the server.', 503);
+}
+if (!preg_match('/^[a-z0-9-]+$/', $region)) {
+    error_log('Azure Speech region configuration is invalid.');
     fail_json('Azure Speech is not configured on the server.', 503);
 }
 if (!extension_loaded('curl')) {
@@ -77,8 +96,8 @@ if ($audio === false || $error !== '') {
     fail_json('Unable to contact Azure Speech.', 502);
 }
 if ($status < 200 || $status >= 300) {
-    error_log('Azure Speech HTTP ' . $status . ': ' . substr((string)$audio, 0, 500));
-    fail_json('Azure Speech rejected the request. Check the key, region and quota.', 502);
+    error_log('Azure Speech returned HTTP ' . $status);
+    fail_json('Speech generation is temporarily unavailable.', 502);
 }
 
 header('Content-Type: audio/mpeg');

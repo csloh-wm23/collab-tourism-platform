@@ -12,27 +12,38 @@ function reply(array $body, int $status=200): never {
     exit;
 }
 
-if (!has_role('business','admin')) reply(['ok'=>false,'message'=>'Business access required.'],403);
-
 try {
-    $db = database();
     $user = current_user();
-    $businessId = filter_input(INPUT_GET, 'business_id', FILTER_VALIDATE_INT);
-
-    if (has_role('admin') && $businessId) {
-        $stmt = $db->prepare('SELECT * FROM businesses WHERE id=?');
-        $stmt->execute([$businessId]);
-    } else {
-        $stmt = $db->prepare('SELECT * FROM businesses WHERE owner_user_id=? LIMIT 1');
-        $stmt->execute([(int)$user['id']]);
+    if (!$user || ($user['role'] ?? '') !== 'business') {
+        reply(['ok'=>false,'message'=>'Business account access required.'],403);
     }
+
+    if (($user['status'] ?? '') === 'suspended') {
+        reply(['ok'=>false,'message'=>'This business account is suspended.'],403);
+    }
+
+    $db = database();
+    $stmt = $db->prepare('SELECT * FROM businesses WHERE owner_user_id=? LIMIT 1');
+    $stmt->execute([(int)$user['id']]);
     $business = $stmt->fetch();
     if (!$business) reply(['ok'=>false,'message'=>'Business profile not found.'],404);
+    if (($user['status'] ?? '') !== 'active' || ($business['verification_status'] ?? '') !== 'approved') {
+        $message = ($business['verification_status'] ?? '') === 'rejected'
+            ? 'This business registration was rejected.'
+            : 'Pending administrator approval.';
+        reply(['ok'=>false,'message'=>$message],403);
+    }
 
-    if ($_SERVER['REQUEST_METHOD']==='GET') {
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    if ($method === 'GET') {
         $p = $db->prepare('SELECT id, source_language, target_language, source_text, translated_text, category, is_published FROM business_phrases WHERE business_id=? ORDER BY created_at DESC');
         $p->execute([(int)$business['id']]);
         reply(['ok'=>true,'business'=>$business,'phrases'=>$p->fetchAll()]);
+    }
+
+    if ($method !== 'POST') {
+        header('Allow: GET, POST');
+        reply(['ok'=>false,'message'=>'Method not allowed.'],405);
     }
 
     $input=json_decode((string)file_get_contents('php://input'),true);
@@ -55,13 +66,14 @@ try {
         $target=(string)($input['target_language']??'ms');
         $category=trim((string)($input['category']??'General'));
         if ($source===''||$translated==='') reply(['ok'=>false,'message'=>'Both phrase fields are required.'],422);
+        if (!in_array($target,['en','ms','zh','ta'],true)) reply(['ok'=>false,'message'=>'Unsupported target language.'],422);
         $db->prepare('INSERT INTO business_phrases (business_id,source_language,target_language,source_text,translated_text,category) VALUES (?,?,?,?,?,?)')
             ->execute([(int)$business['id'],'en',$target,mb_substr($source,0,500),mb_substr($translated,0,500),mb_substr($category,0,80)]);
         reply(['ok'=>true,'id'=>(int)$db->lastInsertId()],201);
     }
 
     reply(['ok'=>false,'message'=>'Unknown action.'],422);
-} catch (PDOException $e) {
+} catch (Throwable $e) {
     error_log($e->getMessage());
     reply(['ok'=>false,'message'=>'Database error.'],500);
 }
