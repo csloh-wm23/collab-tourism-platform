@@ -17,6 +17,12 @@ $user = current_user();
 if (!$user) {
     reply(['ok' => false, 'guest' => true, 'message' => 'Log in to use server history.'], 401);
 }
+if (!in_array((string)($user['role'] ?? ''), ['tourist','business'], true)) {
+    reply(['ok'=>false,'message'=>'Personal history is available to tourist and business accounts only.'],403);
+}
+if (($user['status'] ?? '') === 'suspended') {
+    reply(['ok'=>false,'message'=>'This account is suspended.'],403);
+}
 
 try {
     $db = database();
@@ -28,7 +34,7 @@ try {
         $params = [$userId];
         $sql = 'SELECT id, record_type, title, content, metadata, created_at FROM records WHERE user_id = ?';
         if ($type !== '') {
-            $allowed = ['translation','phrase','report','business','emergency','consent'];
+            $allowed = ['translation','phrase'];
             if (!in_array($type, $allowed, true)) reply(['ok'=>false,'message'=>'Invalid type.'],422);
             $sql .= ' AND record_type = ?';
             $params[] = $type;
@@ -47,9 +53,20 @@ try {
         $type = trim((string)($input['record_type'] ?? ''));
         $title = trim((string)($input['title'] ?? ''));
         $content = trim((string)($input['content'] ?? ''));
-        $allowed = ['translation','phrase','report','business','emergency','consent'];
+        $allowed = ['translation','phrase'];
         if (!in_array($type, $allowed, true) || $title === '' || $content === '') {
             reply(['ok'=>false,'message'=>'record_type, title and content are required.'],422);
+        }
+
+        if ($type === 'translation' && ($user['role'] ?? '') === 'tourist') {
+            $preference = $db->prepare(
+                "SELECT is_granted FROM consent_records WHERE user_id=? AND consent_type='save_translation_history' ORDER BY recorded_at DESC, id DESC LIMIT 1"
+            );
+            $preference->execute([$userId]);
+            $savedPreference = $preference->fetchColumn();
+            if ($savedPreference !== false && (int)$savedPreference !== 1) {
+                reply(['ok'=>false,'message'=>'Translation history is disabled in your privacy choices.'],403);
+            }
         }
 
         $metadata = json_encode($input['metadata'] ?? new stdClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -64,18 +81,13 @@ try {
         if (!$id) reply(['ok'=>false,'message'=>'Valid id required.'],422);
         if (!verify_csrf($csrf)) reply(['ok'=>false,'message'=>'Invalid CSRF token.'],403);
 
-        if (has_role('admin')) {
-            $stmt = $db->prepare('DELETE FROM records WHERE id = ?');
-            $stmt->execute([$id]);
-        } else {
-            $stmt = $db->prepare('DELETE FROM records WHERE id = ? AND user_id = ?');
-            $stmt->execute([$id, $userId]);
-        }
+        $stmt = $db->prepare('DELETE FROM records WHERE id = ? AND user_id = ?');
+        $stmt->execute([$id, $userId]);
         reply(['ok'=>true,'deleted'=>$stmt->rowCount()]);
     }
 
     reply(['ok'=>false,'message'=>'Method not allowed.'],405);
-} catch (PDOException $e) {
+} catch (Throwable $e) {
     error_log($e->getMessage());
     reply(['ok'=>false,'offline'=>true,'message'=>'Database unavailable.'],503);
 }

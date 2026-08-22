@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS consent_records (
   is_granted TINYINT(1) NOT NULL,
   policy_version VARCHAR(30) NOT NULL,
   recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_consent_user_type_recorded (user_id, consent_type, recorded_at),
   CONSTRAINT fk_consent_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
