@@ -24,8 +24,7 @@ DB_NAME=jomcommunicate
 DB_USER=root
 DB_PASS=
 
-AZURE_SPEECH_KEY=
-AZURE_SPEECH_REGION=southeastasia
+GOOGLE_TRANSLATE_API_KEY=
 ```
 
 The default XAMPP MySQL account normally has user `root` and a blank password. Use your actual local credentials if they differ.
@@ -40,21 +39,23 @@ C:\xampp\php\php.exe scripts\create_admin.php "System Admin" admin@jom.local "Ch
 
 Use a unique email and replace the example password. The script hashes the password and creates or promotes the account as an active administrator.
 
-## Azure Speech setup
+## Google Cloud setup
 
-1. Create an Azure Speech resource.
-2. Copy its key and region into your local `.env`.
+1. In Google Cloud, enable both the Cloud Translation API and Cloud Text-to-Speech API.
+2. Create an API key and add it to `GOOGLE_TRANSLATE_API_KEY` in your local `.env`. If the key has API restrictions, allow both APIs.
 3. Ensure the PHP cURL extension is enabled in XAMPP.
 4. Restart Apache after changing PHP or environment configuration.
 
-Speech requests go from the browser to `api/speech.php`. PHP creates the server-side Azure REST request, so the Azure key is never placed in HTML or JavaScript. The endpoint accepts at most 500 characters, supports only the listed languages, and applies a basic per-session request limit.
+Speech requests go from the browser to `api/speech.php`. PHP creates the server-side Google REST request, so the Google key is never placed in HTML or JavaScript. The endpoint accepts at most 500 characters, supports only the listed languages, and applies a basic per-session request limit.
 
-Configured voices:
+Translation requests similarly go through `api/translate.php`. The endpoint validates the language pair and text length, keeps the Google API key server-side, and rate-limits each session.
 
-- English: `en-US-JennyNeural`
-- Malay (Malaysia): `ms-MY-YasminNeural`
-- Mandarin: `zh-CN-XiaoxiaoNeural`
-- Tamil (Malaysia): `ta-MY-KaniNeural`
+Configured Google voices:
+
+- English: `en-US-Standard-C`
+- Malay playback (using the Indonesian voice): `id-ID-Standard-A`
+- Mandarin: `cmn-CN-Standard-A`
+- Tamil: `ta-IN-Standard-A`
 
 ## Account roles and approval flow
 
@@ -77,20 +78,16 @@ Approval and rejection decisions are written to `audit_logs`.
 
 ## Supported languages
 
-The current software keeps its existing language set:
+The current software supports:
 
 - English (`en-US` speech recognition)
-- Bahasa Melayu (`ms-MY`)
+- Bahasa Melayu (`ms-MY` speech recognition)
 - Mandarin (`zh-CN`)
 - Tamil (`ta-MY`)
 
-The proposal language list should be updated separately if the team intends to use Tamil instead of Indonesian and Thai. This implementation deliberately does not add or remove languages without that project decision.
+## Translation behavior
 
-## Translation limitation
-
-Text translation is a small demonstration dictionary, not a real arbitrary-language translator. Known phrases translate normally. Unsupported text displays `Demo translation unavailable for this phrase.` instead of pretending the original text was translated. The client structure leaves room for a future server-side translation API.
-
-Azure is used only for speech synthesis of a valid, current translated result. Changing the source text, source language, target language or Swap selection makes the previous result stale until Translate is pressed again.
+Curated tourism phrases are translated first by the built-in dictionary, so they remain fast and available without an external request. Other text is sent to Google Cloud Translation. English, Malay, Simplified Chinese, and Tamil are accepted as source and target languages. Google Cloud Text-to-Speech reads every result; Malay results intentionally use the Indonesian Google voice. Changing the source text, source language, target language or Swap selection makes the previous result stale until Translate is pressed again.
 
 ## Privacy and security notes
 
@@ -108,7 +105,7 @@ Azure is used only for speech synthesis of a valid, current translated result. C
 
 Use separate browser/private windows for different accounts:
 
-1. As a guest, translate `Thank you` from English to Malay, play speech after Azure is configured, save a phrase, and refresh to verify localStorage.
+1. As a guest, translate `Thank you` from English to Malay, play it with the Indonesian Google voice after setup, save the phrase, and refresh to verify localStorage.
 2. Register a tourist, log in, translate, refresh, and verify private history persists. Disable Save Translation History, translate again, and verify no translation record is added.
 3. Register a business and log in. Confirm the pending notice appears, the Business Portal navigation is absent, and `api/business.php` returns HTTP 403.
 4. Log in as admin, approve the pending business, and verify it leaves the pending list.

@@ -46,7 +46,7 @@ $year = date('Y');
 <?php if (in_array($role,['editor','admin'],true) && ($user['status']??'')==='active'): ?><button class="nav-link" data-page="insights">📊 Insights</button><?php endif; ?>
 <?php if ($role==='admin' && ($user['status']??'')==='active'): ?><button class="nav-link" data-page="admin">⚙️ Administration</button><?php endif; ?>
 </nav>
-<div class="sidebar-foot"><span class="status-dot"></span> PHP · MySQL · Azure Speech</div>
+<div class="sidebar-foot"><span class="status-dot"></span> PHP · MySQL · Google Cloud</div>
 </aside>
 
 <main class="main-area">
@@ -77,7 +77,7 @@ $year = date('Y');
 <div class="alert warning account-notice" role="status"><h2>Account suspended</h2><p>Protected account functions are unavailable. Contact an administrator for help.</p></div>
 <?php endif; ?>
 <section class="page active" id="communication">
-<div class="page-heading"><div><span class="eyebrow">Real-time tourism communication</span><h1>Translate and speak</h1><p>Text translation demo with Azure neural speech playback for Malay and Malaysian Tamil.</p></div><span class="pill" id="speechBadge">Azure TTS ready after setup</span></div>
+<div class="page-heading"><div><span class="eyebrow">Real-time tourism communication</span><h1>Translate and speak</h1><p>Live translation and voice playback powered by Google Cloud.</p></div><span class="pill" id="speechBadge">Google Cloud ready after setup</span></div>
 <div class="grid-two">
 <article class="card-panel">
 <h2>Translate a message</h2>
@@ -94,11 +94,11 @@ $year = date('Y');
 <h2>Translation</h2>
 <div id="translationResult" class="translation-result">Stesen kereta api terdekat di mana?</div>
 <div class="button-row">
-<button id="speakResult" class="secondary">🔊 Azure voice</button>
+<button id="speakResult" class="secondary">🔊 Google voice</button>
 <button id="copyResult" class="secondary">⧉ Copy</button>
 <button id="savePhrase" class="primary">＋ Save phrase</button>
 </div>
-<p class="muted small">Translation itself is still the project demo dictionary. Azure is used for text-to-speech output.</p>
+<p class="muted small">Curated tourism phrases work locally; Google Cloud translates other messages and reads results aloud.</p>
 </article>
 </div>
 <div class="grid-two mt">
@@ -165,5 +165,5 @@ window.JOM = {
   role: <?= json_encode($role) ?>
 };
 </script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/js/app.js') ?: '1')) ?>"></script>
 </body></html>

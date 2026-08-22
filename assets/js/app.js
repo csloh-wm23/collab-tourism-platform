@@ -78,26 +78,37 @@ return (dictionary[key]||{})[source.toLowerCase()]||null;
 async function translate(){
 const source=$('#sourceText').value.trim();
 if(!source){toast('Enter a message first.');return;}
-const result=translatedValue();
-if(!result){
-currentTranslation='';translationState=null;
-$('#translationResult').textContent='Demo translation unavailable for this phrase.';
-setTranslationActions(false);
-toast('This demo dictionary does not contain that phrase.');
-return;
+const from=$('#sourceLanguage').value,to=$('#targetLanguage').value;
+const button=$('#translateButton'),old=button?.textContent;
+if(button){button.disabled=true;button.textContent='Translating…';}
+try{
+let result=translatedValue();
+if(result===null){
+const response=await fetch('api/translate.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:source,from,to})});
+if(!response.ok)throw new Error(await apiMessage(response,'Translation failed.'));
+result=(await response.json()).translation;
+if(typeof result!=='string'||!result)throw new Error('Translation service returned an invalid result.');
 }
 currentTranslation=result;
-translationState={source,from:$('#sourceLanguage').value,to:$('#targetLanguage').value};
+translationState={source,from,to};
 $('#translationResult').textContent=result;
 setTranslationActions(true);
 
 const historyEnabled=$('#historyConsent')?$('#historyConsent').checked:usesServerHistory();
 if(historyEnabled){
-await saveRecord({record_type:'translation',title:source,content:result,metadata:{from:$('#sourceLanguage').value,to:$('#targetLanguage').value}});
+await saveRecord({record_type:'translation',title:source,content:result,metadata:{from,to}});
+}
+}catch(e){
+currentTranslation='';translationState=null;
+$('#translationResult').textContent=e.message||'Translation is temporarily unavailable.';
+setTranslationActions(false);
+toast(e.message||'Translation failed.');
+}finally{
+if(button){button.disabled=false;button.textContent=old;}
 }
 }
 
-async function azureSpeak(text,language){
+async function googleSpeak(text,language){
 if(!text||!translationIsCurrent()){toast('Press Translate again before using speech.');return;}
 const button=$('#speakResult');
 const old=button?.textContent;
@@ -105,7 +116,7 @@ if(button){button.disabled=true;button.textContent='Generating voice…';}
 try{
 const response=await fetch('api/speech.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language})});
 if(!response.ok){
-let message='Azure speech failed.';
+let message='Google speech failed.';
 try{const data=await response.json();message=data.message||message;}catch(e){}
 throw new Error(message);
 }
@@ -196,7 +207,7 @@ const a=$('#sourceLanguage').value,b=$('#targetLanguage').value;$('#sourceLangua
 invalidateTranslation();
 });
 $('#listenInput')?.addEventListener('click',()=>listen($('#sourceLanguage').value,text=>{$('#sourceText').value=text;updateCharacterCount();invalidateTranslation();}));
-$('#speakResult')?.addEventListener('click',()=>azureSpeak(currentTranslation,$('#targetLanguage').value));
+$('#speakResult')?.addEventListener('click',()=>googleSpeak(currentTranslation,$('#targetLanguage').value));
 $('#copyResult')?.addEventListener('click',async()=>{
 if(!translationIsCurrent()){toast('Press Translate again before copying.');return;}
 try{await navigator.clipboard.writeText(currentTranslation);toast('Copied.');}catch(e){toast('Copy is unavailable.');}
