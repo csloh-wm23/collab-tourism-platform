@@ -25,6 +25,8 @@ check(str_contains($all,"event.key==='Escape'")&&str_contains($all,"setMenu(fals
 $index=file_get_contents($root.'/index.php');
 check(substr_count($index,'<aside')===1&&substr_count($index,'</aside>')===1,'Navigation aside markup is unbalanced.');
 check(strpos($index,'</aside>')<strpos($index,'id="sidebarBackdrop"'),'The page must not be nested inside the hidden navigation drawer.');
+$css=file_get_contents($root.'/assets/css/styles.css');
+check(str_contains($css,'.sidebar .brand{font-size:16px;margin:42px 8px 30px}'),'Drawer header spacing regression.');
 $login=file_get_contents($root.'/login.php');check(str_contains($login,'failed_login_attempts')&&str_contains($login,'INTERVAL 15 MINUTE'),'Login lockout is missing.');
 $schema=file_get_contents($root.'/database/jomcommunicate.sql');foreach(['business_faqs','business_terms','malaysian_terms','phrase_packs','analytics_events','business_interactions'] as $table)check(str_contains($schema,'CREATE TABLE IF NOT EXISTS '.$table),'Schema table missing: '.$table);
 
