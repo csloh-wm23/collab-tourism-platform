@@ -20,6 +20,8 @@ check(!preg_match('/Tamil|ta-IN|ta-MY|value=["\']ta["\']/i',$all),'Tamil remains
 foreach(['Automatic detection','Two-way conversation','Report unclear','Indonesian','Thai','Medical','Emergency','Destination packs','Frequently asked questions','Export CSV'] as $needle)check(str_contains($all,$needle),'Missing proposal feature marker: '.$needle);
 check(str_contains($all,'dark-mode')&&str_contains($all,'jomcommunicate_theme'),'Persistent dark mode is missing.');
 check(str_contains($all,'topbar-title'),'Header title/date spacing class is missing.');
+check(str_contains($all,'sidebarBackdrop')&&str_contains($all,'closeMenuButton'),'Dismissible navigation controls are missing.');
+check(str_contains($all,"event.key==='Escape'")&&str_contains($all,"setMenu(false)"),'Keyboard and programmatic navigation dismissal are missing.');
 $login=file_get_contents($root.'/login.php');check(str_contains($login,'failed_login_attempts')&&str_contains($login,'INTERVAL 15 MINUTE'),'Login lockout is missing.');
 $schema=file_get_contents($root.'/database/jomcommunicate.sql');foreach(['business_faqs','business_terms','malaysian_terms','phrase_packs','analytics_events','business_interactions'] as $table)check(str_contains($schema,'CREATE TABLE IF NOT EXISTS '.$table),'Schema table missing: '.$table);
 
