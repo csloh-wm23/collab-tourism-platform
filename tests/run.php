@@ -22,6 +22,9 @@ check(str_contains($all,'dark-mode')&&str_contains($all,'jomcommunicate_theme'),
 check(str_contains($all,'topbar-title'),'Header title/date spacing class is missing.');
 check(str_contains($all,'sidebarBackdrop')&&str_contains($all,'closeMenuButton'),'Dismissible navigation controls are missing.');
 check(str_contains($all,"event.key==='Escape'")&&str_contains($all,"setMenu(false)"),'Keyboard and programmatic navigation dismissal are missing.');
+$index=file_get_contents($root.'/index.php');
+check(substr_count($index,'<aside')===1&&substr_count($index,'</aside>')===1,'Navigation aside markup is unbalanced.');
+check(strpos($index,'</aside>')<strpos($index,'id="sidebarBackdrop"'),'The page must not be nested inside the hidden navigation drawer.');
 $login=file_get_contents($root.'/login.php');check(str_contains($login,'failed_login_attempts')&&str_contains($login,'INTERVAL 15 MINUTE'),'Login lockout is missing.');
 $schema=file_get_contents($root.'/database/jomcommunicate.sql');foreach(['business_faqs','business_terms','malaysian_terms','phrase_packs','analytics_events','business_interactions'] as $table)check(str_contains($schema,'CREATE TABLE IF NOT EXISTS '.$table),'Schema table missing: '.$table);
 
