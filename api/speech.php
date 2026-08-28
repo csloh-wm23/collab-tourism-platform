@@ -41,8 +41,7 @@ $lang = (string)($input['language'] ?? '');
 
 $voices = [
     'en' => ['languageCode' => 'en-US', 'name' => 'en-US-Standard-C'],
-    // Malay translations are intentionally read by an Indonesian Google voice.
-    'ms' => ['languageCode' => 'id-ID', 'name' => 'id-ID-Standard-A'],
+    'ms' => ['languageCode' => 'ms-MY', 'name' => 'ms-MY-Standard-A'],
     'zh' => ['languageCode' => 'cmn-CN', 'name' => 'cmn-CN-Standard-A'],
     'ta' => ['languageCode' => 'ta-IN', 'name' => 'ta-IN-Standard-A'],
 ];
