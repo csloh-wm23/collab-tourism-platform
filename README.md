@@ -53,7 +53,7 @@ Translation requests similarly go through `api/translate.php`. The endpoint vali
 Configured Google voices:
 
 - English: `en-US-Standard-C`
-- Malay playback (using the Indonesian voice): `id-ID-Standard-A`
+- Malay: `ms-MY-Standard-A`
 - Mandarin: `cmn-CN-Standard-A`
 - Tamil: `ta-IN-Standard-A`
 
@@ -87,7 +87,7 @@ The current software supports:
 
 ## Translation behavior
 
-Curated tourism phrases are translated first by the built-in dictionary, so they remain fast and available without an external request. Other text is sent to Google Cloud Translation. English, Malay, Simplified Chinese, and Tamil are accepted as source and target languages. Google Cloud Text-to-Speech reads every result; Malay results intentionally use the Indonesian Google voice. Changing the source text, source language, target language or Swap selection makes the previous result stale until Translate is pressed again.
+Curated tourism phrases are translated first by the built-in dictionary, so they remain fast and available without an external request. Other text is sent to Google Cloud Translation. English, Malay, Simplified Chinese, and Tamil are accepted as source and target languages. Google Cloud Text-to-Speech reads every result using the configured language-specific voice. Changing the source text, source language, target language or Swap selection makes the previous result stale until Translate is pressed again.
 
 ## Privacy and security notes
 
@@ -105,7 +105,7 @@ Curated tourism phrases are translated first by the built-in dictionary, so they
 
 Use separate browser/private windows for different accounts:
 
-1. As a guest, translate `Thank you` from English to Malay, play it with the Indonesian Google voice after setup, save the phrase, and refresh to verify localStorage.
+1. As a guest, translate `Thank you` from English to Malay, play it with the Malay Google voice after setup, save the phrase, and refresh to verify localStorage.
 2. Register a tourist, log in, translate, refresh, and verify private history persists. Disable Save Translation History, translate again, and verify no translation record is added.
 3. Register a business and log in. Confirm the pending notice appears, the Business Portal navigation is absent, and `api/business.php` returns HTTP 403.
 4. Log in as admin, approve the pending business, and verify it leaves the pending list.
