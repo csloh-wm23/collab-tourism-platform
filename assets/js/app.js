@@ -1,311 +1,64 @@
 (function(){
 'use strict';
-
-const $=s=>document.querySelector(s);
-const $$=s=>Array.from(document.querySelectorAll(s));
-const storageKey='jomcommunicate_records_v2';
-const privacyKey='jomcommunicate_privacy_v2';
-let records=[];
-let currentTranslation='Stesen kereta api terdekat di mana?';
-let translationState={source:'Where is the nearest train station?',from:'en',to:'ms'};
-
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+const storageKey='jomcommunicate_records_v3',privacyKey='jomcommunicate_privacy_v3';
+const locales={en:'en-US',ms:'ms-MY',zh:'zh-CN',id:'id-ID',th:'th-TH'};
+const names={en:'English',ms:'Bahasa Malaysia',zh:'Mandarin Chinese',id:'Indonesian',th:'Thai',auto:'Automatic detection'};
+let records=[],current=null,scenarioPhrases=[];
 const dictionary={
-'en-ms':{
-'where is the nearest train station?':'Stesen kereta api terdekat di mana?',
-'how much is this?':'Berapakah harga ini?',
-'i need help':'Saya perlukan bantuan',
-'does this contain peanuts?':'Adakah ini mengandungi kacang tanah?',
-'thank you':'Terima kasih'
-},
-'ms-en':{
-'stesen kereta api terdekat di mana?':'Where is the nearest train station?',
-'berapakah harga ini?':'How much is this?',
-'saya perlukan bantuan':'I need help',
-'terima kasih':'Thank you'
-},
-'en-zh':{'thank you':'谢谢','where is the nearest train station?':'最近的火车站在哪里？'},
-'en-ta':{'thank you':'நன்றி','where is the nearest train station?':'அருகிலுள்ள ரயில் நிலையம் எங்கே?'}
+ 'en-ms':{'where is the nearest train station?':'Stesen kereta api terdekat di mana?','thank you':'Terima kasih','i need help':'Saya perlukan bantuan'},
+ 'en-id':{'thank you':'Terima kasih','i need help':'Saya butuh bantuan'},
+ 'en-th':{'thank you':'ขอบคุณ','i need help':'ฉันต้องการความช่วยเหลือ'},
+ 'en-zh':{'thank you':'谢谢','i need help':'我需要帮助'}
 };
-
-const recognitionLocales={en:'en-US',ms:'ms-MY',zh:'zh-CN',ta:'ta-MY'};
-const scenarios={
-restaurant:[['Ask for a table','Meja untuk dua orang, sila.'],['Mention an allergy','Saya alah kepada kacang tanah.'],['Ask for the bill','Boleh saya minta bil?']],
-transport:[['Name your destination','Saya mahu pergi ke KL Sentral.'],['Ask the fare','Berapakah tambangnya?'],['Confirm the stop','Adakah ini perhentian saya?']],
-hotel:[['Give your booking name','Tempahan atas nama saya.'],['Ask about check-in','Boleh saya daftar masuk sekarang?'],['Request Wi-Fi','Apakah kata laluan Wi-Fi?']],
-shopping:[['Ask the price','Berapakah harga ini?'],['Ask for another size','Ada saiz lain?'],['Pay by card','Boleh bayar dengan kad?']]
-};
-
 function escapeHtml(v){const d=document.createElement('div');d.textContent=String(v??'');return d.innerHTML;}
-function toast(msg){const e=$('#toast');if(!e)return;e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2500);}
+function toast(m){const e=$('#toast');if(!e)return;e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600);}
+async function message(r,f){try{return (await r.json()).message||f;}catch(e){return f;}}
+function jsonFetch(url,options={}){return fetch(url,{headers:{'Content-Type':'application/json',Accept:'application/json',...(options.headers||{})},...options});}
+function privacy(){try{return {save_history:true,analytics:false,...JSON.parse(localStorage.getItem(privacyKey)||'{}')};}catch(e){return{save_history:true,analytics:false};}}
+function showPage(id){$$('.page').forEach(p=>p.classList.toggle('active',p.id===id));$$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));$('.sidebar')?.classList.remove('open');location.hash=id;}
+$$('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));$('#menuButton')?.addEventListener('click',()=>$('.sidebar')?.classList.toggle('open'));$('#contrastButton')?.addEventListener('click',()=>document.body.classList.toggle('high-contrast'));if($('#todayLabel'))$('#todayLabel').textContent=new Intl.DateTimeFormat('en-MY',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
+
+function actions(on){['#speakResult','#copyResult','#savePhrase','#reportTranslation'].forEach(s=>{if($(s))$(s).disabled=!on;});}
+function invalidate(){current=null;actions(false);if($('#translationResult'))$('#translationResult').textContent='Translation out of date. Press Translate.';}
+function recognition(lang,done){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Speech recognition is unavailable in this browser.');return;}const r=new SR();r.lang=locales[lang]||'en-US';r.interimResults=false;r.onresult=e=>{const result=e.results[0][0];if(result.confidence<0.55&&!confirm('Voice confidence is low. Use this message anyway?'))return;done(result.transcript,result.confidence);};r.onerror=()=>toast('Voice input was unclear. Try again.');r.start();}
+async function translate(){const text=$('#sourceText').value.trim(),from=$('#sourceLanguage').value,to=$('#targetLanguage').value,scenario=$('#communicationScenario').value;if(!text){toast('Enter a message first.');return;}const button=$('#translateButton');button.disabled=true;button.textContent='Translating…';try{let data;const local=(dictionary[from+'-'+to]||{})[text.toLowerCase()];if(local)data={translation:local,detected_language:from,confidence:.99,alternatives:[]};else{const r=await jsonFetch('api/translate.php',{method:'POST',body:JSON.stringify({text,from,to,scenario})});if(!r.ok)throw new Error(await message(r,'Translation failed.'));data=await r.json();}current={source:text,translation:data.translation,from:data.detected_language||from,to,scenario,confidence:Number(data.confidence||0),alternatives:data.alternatives||[]};$('#translationResult').textContent=current.translation;$('#translationMeta').textContent='Detected: '+(names[current.from]||current.from)+' · Confidence: '+Math.round(current.confidence*100)+'%';$('#translationAlternatives').innerHTML=current.alternatives.length?'<strong>Alternative / context</strong>'+current.alternatives.map(v=>'<div class="record-item">'+escapeHtml(v)+'</div>').join(''):'';actions(true);renderTwoWay();if($('#historyConsent')?.checked!==false)await saveRecord({record_type:'translation',title:text,content:current.translation,source_language:current.from,target_language:to,scenario,confidence:current.confidence,metadata:{from:current.from,to,scenario}});await track(current.confidence<.7?'low_confidence':'translation',to,scenario,'',current.confidence);if($('#profileVoice')?.checked)await speak();}catch(e){$('#translationResult').textContent=e.message;toast(e.message);}finally{button.disabled=false;button.textContent='Translate';}}
+function renderTwoWay(){const e=$('#twoWayReplies');if(!e)return;if(!$('#twoWayMode').checked||!current){e.innerHTML='';return;}const replies=['Yes, please.','No, thank you.','Could you repeat that?'];e.innerHTML=replies.map(v=>'<button class="chip" data-reply="'+escapeHtml(v)+'">'+escapeHtml(v)+'</button>').join('');$$('[data-reply]').forEach(b=>b.onclick=()=>{$('#sourceText').value=b.dataset.reply;const a=$('#sourceLanguage').value;$('#sourceLanguage').value=$('#targetLanguage').value;$('#targetLanguage').value=a;invalidate();translate();});}
+async function speak(){if(!current)return;const r=await jsonFetch('api/speech.php',{method:'POST',body:JSON.stringify({text:current.translation,language:current.to})});if(!r.ok){toast(await message(r,'Speech failed.'));return;}const url=URL.createObjectURL(await r.blob()),audio=new Audio(url);audio.onended=()=>URL.revokeObjectURL(url);audio.play();}
+async function report(){if(!current)return;const notes=prompt('What is unclear? (optional)')??'';const r=await jsonFetch('api/report.php',{method:'POST',body:JSON.stringify({...current,source_text:current.source,translated_text:current.translation,source_language:current.from,target_language:current.to,issue_type:current.confidence<.7?'low_confidence':'unclear_translation',notes,csrf:window.JOM.csrf})});toast(r.ok?'Translation reported.':await message(r,'Could not report.'));}
+$('#sourceText')?.addEventListener('input',()=>{$('#characterCount').textContent=$('#sourceText').value.length;invalidate();});$('#sourceLanguage')?.addEventListener('change',invalidate);$('#targetLanguage')?.addEventListener('change',invalidate);$('#communicationScenario')?.addEventListener('change',invalidate);$('#translateButton')?.addEventListener('click',translate);$('#twoWayMode')?.addEventListener('change',renderTwoWay);$('#swapLanguages')?.addEventListener('click',()=>{const a=$('#sourceLanguage').value;if(a==='auto'){toast('Choose a source language before swapping.');return;}$('#sourceLanguage').value=$('#targetLanguage').value;$('#targetLanguage').value=a;invalidate();});$('#listenInput')?.addEventListener('click',()=>recognition($('#sourceLanguage').value,(text,confidence)=>{$('#sourceText').value=text;$('#characterCount').textContent=text.length;invalidate();if(confidence<.7)track('low_confidence',$('#sourceLanguage').value,$('#communicationScenario').value,'',confidence);}));$('#speakResult')?.addEventListener('click',speak);$('#copyResult')?.addEventListener('click',()=>current&&navigator.clipboard.writeText(current.translation).then(()=>toast('Copied.')));$('#reportTranslation')?.addEventListener('click',report);
+function openOverlay(source,translation,extra=''){if(!$('#messageOverlay'))return;$('#overlaySource').textContent=source;$('#overlayTranslation').textContent=translation;$('#overlayExtra').textContent=extra;$('#messageOverlay').classList.add('open');$('#messageOverlay').setAttribute('aria-hidden','false');}
+$('#largeMessage')?.addEventListener('click',()=>current?openOverlay(current.source,current.translation,'Show this screen to the other person.'):toast('Translate a message first.'));$('#closeOverlay')?.addEventListener('click',()=>{$('#messageOverlay').classList.remove('open');$('#messageOverlay').setAttribute('aria-hidden','true');});
+
 function localRecords(){try{return JSON.parse(localStorage.getItem(storageKey)||'[]');}catch(e){return[];}}
-function saveLocal(list){localStorage.setItem(storageKey,JSON.stringify(list.slice(0,100)));}
-async function apiMessage(response,fallback){
-try{const data=await response.json();return data.message||fallback;}catch(e){return fallback;}
-}
-function usesServerHistory(){return window.JOM.authenticated&&['tourist','business'].includes(window.JOM.role);}
+function serverHistory(){return window.JOM.authenticated&&['tourist','business'].includes(window.JOM.role);}
+async function loadRecords(){if(serverHistory()){const r=await fetch('api/records.php');records=r.ok?(await r.json()).records:[];}else records=localRecords();renderRecords();}
+async function saveRecord(row){row.created_at=new Date().toISOString();if(serverHistory()){const r=await jsonFetch('api/records.php',{method:'POST',body:JSON.stringify({...row,csrf:window.JOM.csrf})});if(r.ok)row.id=(await r.json()).id;else return;}else{row.id='local-'+Date.now();const l=localRecords();l.unshift(row);localStorage.setItem(storageKey,JSON.stringify(l.slice(0,100)));}records.unshift(row);renderRecords();}
+async function removeRecord(id){if(String(id).startsWith('local-'))localStorage.setItem(storageKey,JSON.stringify(localRecords().filter(r=>String(r.id)!==String(id))));else await fetch('api/records.php?id='+encodeURIComponent(id),{method:'DELETE',headers:{'X-CSRF-Token':window.JOM.csrf}});records=records.filter(r=>String(r.id)!==String(id));renderRecords();}
+async function favorite(id,on){if(!String(id).startsWith('local-'))await jsonFetch('api/records.php',{method:'PATCH',body:JSON.stringify({id:Number(id),is_favorite:on,csrf:window.JOM.csrf})});const row=records.find(r=>String(r.id)===String(id));if(row)row.is_favorite=on?1:0;renderRecords();}
+function recordRow(r){return '<div class="record-item"><div><strong>'+escapeHtml(r.title)+'</strong><small>'+escapeHtml(r.content)+'</small></div><span><button data-fav="'+escapeHtml(r.id)+'">'+(Number(r.is_favorite)?'★':'☆')+'</button><button data-del="'+escapeHtml(r.id)+'">×</button></span></div>';}
+function renderRecords(){const recent=records.filter(r=>r.record_type==='translation').slice(0,8),saved=records.filter(r=>r.record_type==='phrase'||Number(r.is_favorite)).slice(0,20);if($('#recentTranslations'))$('#recentTranslations').innerHTML=recent.length?recent.map(recordRow).join(''):'<div class="empty-state">No recent translations.</div>';if($('#savedPhrases'))$('#savedPhrases').innerHTML=saved.length?saved.map(recordRow).join(''):'<div class="empty-state">No favourites yet.</div>';$$('[data-del]').forEach(b=>b.onclick=()=>removeRecord(b.dataset.del));$$('[data-fav]').forEach(b=>b.onclick=()=>favorite(b.dataset.fav,b.textContent==='☆'));}
+$('#savePhrase')?.addEventListener('click',()=>current&&saveRecord({record_type:'phrase',title:current.source,content:current.translation,source_language:current.from,target_language:current.to,scenario:current.scenario,confidence:current.confidence,is_favorite:true,metadata:{}}).then(()=>toast('Phrase saved as a favourite.')));
 
-function translationIsCurrent(){
-return !!translationState&&translationState.source===$('#sourceText').value.trim()&&translationState.from===$('#sourceLanguage').value&&translationState.to===$('#targetLanguage').value;
-}
-function setTranslationActions(enabled){
-['#speakResult','#copyResult','#savePhrase'].forEach(selector=>{const button=$(selector);if(button)button.disabled=!enabled;});
-}
-function invalidateTranslation(){
-translationState=null;currentTranslation='';
-$('#translationResult').textContent='Translation out of date. Press Translate to refresh it.';
-setTranslationActions(false);
-}
+async function loadGlossary(){const r=await fetch('api/glossary.php');if(!r.ok)return;const terms=(await r.json()).terms;$('#glossaryList').innerHTML=terms.map(t=>'<button class="record-item term-button" data-term="'+escapeHtml(t.term)+'"><div><strong>'+escapeHtml(t.term)+'</strong><small>'+escapeHtml(t.explanation)+'</small></div><span class="pill">'+escapeHtml(t.category)+'</span></button>').join('');$$('[data-term]').forEach(b=>b.onclick=()=>track('difficult_term',$('#targetLanguage').value,$('#communicationScenario').value,b.dataset.term));}
+async function loadAssistance(){const scenario=$('#scenarioSelect').value,destination=$('#packDestination').value.trim()||'Malaysia',cacheKey='jompack:'+destination+':'+scenario;try{const r=await fetch('api/assistance.php?scenario='+encodeURIComponent(scenario)+'&destination='+encodeURIComponent(destination));if(!r.ok)throw new Error(await message(r,'Assistant unavailable.'));scenarioPhrases=(await r.json()).phrases;localStorage.setItem(cacheKey,JSON.stringify(scenarioPhrases));}catch(e){try{scenarioPhrases=JSON.parse(localStorage.getItem(cacheKey)||'[]');}catch(ignore){scenarioPhrases=[];}if(scenarioPhrases.length)toast('Using the saved offline phrase pack.');else toast(e.message);}$('#scenarioSteps').innerHTML=scenarioPhrases.length?scenarioPhrases.map((p,i)=>'<div class="scenario-step"><strong>'+(i+1)+'. '+escapeHtml(p.source_text)+'</strong><span>'+escapeHtml(p.translated_text)+'</span><button class="chip" data-assist="'+i+'">Use</button><button class="chip" data-quick="'+i+'">Quick reply</button></div>').join(''):'<div class="empty-state">No phrases for this selection.</div>';$('#culturalTips').innerHTML=scenarioPhrases.map(p=>p.cultural_tip).filter(Boolean).map(escapeHtml).join('<br>');$$('[data-assist]').forEach(b=>b.onclick=()=>{$('#sourceText').value=scenarioPhrases[Number(b.dataset.assist)].source_text;$('#communicationScenario').value=scenario;showPage('communication');invalidate();});$$('[data-quick]').forEach(b=>{b.onclick=()=>{const p=scenarioPhrases[Number(b.dataset.quick)];openOverlay(p.translated_text,p.suggested_reply||'','Two-way quick reply');};});}
+$('#loadScenario')?.addEventListener('click',loadAssistance);$('#saveDestinationPack')?.addEventListener('click',async()=>{const destination=$('#packDestination').value.trim()||'Malaysia',scenario=$('#scenarioSelect').value;localStorage.setItem('jompack:'+destination+':'+scenario,JSON.stringify(scenarioPhrases));if(window.JOM.role==='tourist'){const r=await jsonFetch('api/tourist.php',{method:'POST',body:JSON.stringify({action:'add_pack',destination,csrf:window.JOM.csrf})});if(!r.ok){toast(await message(r,'Could not save pack.'));return;}loadProfile();}toast('Offline phrase pack saved on this device.');});$('#generateEmergency')?.addEventListener('click',()=>{const details=$('#assistEmergency').value.trim(),needs=[$('#assistDietary').value,$('#assistAllergy').value,$('#assistReligious').value,'Spice: '+$('#assistSpice').value].filter(Boolean).join(' · ');openOverlay('I need emergency help. '+details,'Saya perlukan bantuan kecemasan. '+details,needs+' · Call 999');});
 
-function showPage(id){
-$$('.page').forEach(p=>p.classList.toggle('active',p.id===id));
-$$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
-$('.sidebar')?.classList.remove('open');
-location.hash=id;
-}
+async function loadPreferences(){let p=privacy();if(window.JOM.authenticated&&window.JOM.role==='tourist'){const r=await fetch('api/preferences.php');if(r.ok)p=(await r.json()).preferences;}if($('#historyConsent'))$('#historyConsent').checked=!!p.save_history;if($('#analyticsConsent'))$('#analyticsConsent').checked=!!p.analytics;}
+async function savePreferences(){const p={save_history:$('#historyConsent').checked,analytics:$('#analyticsConsent').checked};if(window.JOM.authenticated&&window.JOM.role==='tourist')await jsonFetch('api/preferences.php',{method:'POST',body:JSON.stringify({...p,csrf:window.JOM.csrf})});else localStorage.setItem(privacyKey,JSON.stringify(p));toast('Privacy choices saved.');}
+$('#historyConsent')?.addEventListener('change',savePreferences);$('#analyticsConsent')?.addEventListener('change',savePreferences);
+async function track(event,language,scenario,term='',confidence=null){if(!$('#analyticsConsent')?.checked)return;await jsonFetch('api/analytics.php',{method:'POST',body:JSON.stringify({event_type:event,language_code:language,scenario,location_label:$('#packDestination')?.value||'',term_label:term,confidence,consent:true,csrf:window.JOM.csrf})});}
+async function loadProfile(){if(window.JOM.role!=='tourist'||!$('#profileName'))return;const r=await fetch('api/tourist.php');if(!r.ok)return;const d=await r.json(),p=d.profile||{};const map={profileName:'full_name',profileLanguage:'preferred_language',profileDestination:'default_destination',profileAccessibility:'accessibility_notes',profileDietary:'dietary_notes',profileAllergy:'allergy_notes',profileEmergencyContact:'emergency_contact',profileEmergencyDetails:'emergency_details'};Object.entries(map).forEach(([id,k])=>{$('#'+id).value=p[k]||'';});$('#profileLargeText').checked=!!Number(p.large_text);$('#profileVoice').checked=!!Number(p.voice_playback);document.body.classList.toggle('large-text',$('#profileLargeText').checked);$('#destinationPacks').innerHTML=d.packs.length?d.packs.map(x=>'<div class="record-item"><strong>'+escapeHtml(x.destination)+'</strong><button data-remove-pack="'+escapeHtml(x.destination)+'">×</button></div>').join(''):'<div class="empty-state">No destination packs.</div>';$('#personalRecommendations').innerHTML='<div class="scenario-step"><strong>Recommended for '+escapeHtml(p.default_destination||'Malaysia')+'</strong><span>Use your preferred language and saved dietary, allergy and accessibility settings in the relevant assistant.</span></div>';$$('[data-remove-pack]').forEach(b=>b.onclick=async()=>{await jsonFetch('api/tourist.php',{method:'POST',body:JSON.stringify({action:'remove_pack',destination:b.dataset.removePack,csrf:window.JOM.csrf})});loadProfile();});}
+$('#saveProfile')?.addEventListener('click',async()=>{const ids=['profileName','profileLanguage','profileDestination','profileAccessibility','profileDietary','profileAllergy','profileEmergencyContact','profileEmergencyDetails'];const keys=['full_name','preferred_language','default_destination','accessibility_notes','dietary_notes','allergy_notes','emergency_contact','emergency_details'];const body={action:'save_profile',csrf:window.JOM.csrf};ids.forEach((id,i)=>body[keys[i]]=$('#'+id).value);body.large_text=$('#profileLargeText').checked;body.voice_playback=$('#profileVoice').checked;const r=await jsonFetch('api/tourist.php',{method:'POST',body:JSON.stringify(body)});toast(r.ok?'Profile saved.':await message(r,'Could not save profile.'));if(r.ok)loadProfile();});$('#deleteJourneyData')?.addEventListener('click',async()=>{if(!confirm('Delete all saved journey records, packs and privacy choices?'))return;const r=await jsonFetch('api/tourist.php',{method:'DELETE',body:JSON.stringify({csrf:window.JOM.csrf})});if(r.ok){records=[];renderRecords();loadProfile();}toast(r.ok?'Journey data deleted.':await message(r,'Could not delete data.'));});
 
-$$('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
-$('#menuButton')?.addEventListener('click',()=>$('.sidebar')?.classList.toggle('open'));
-$('#contrastButton')?.addEventListener('click',()=>document.body.classList.toggle('high-contrast'));
-$('#todayLabel').textContent=new Intl.DateTimeFormat('en-MY',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
+async function businessAction(body,success){const r=await jsonFetch('api/business.php',{method:'POST',body:JSON.stringify({...body,csrf:window.JOM.csrf})});toast(r.ok?success:await message(r,'Business update failed.'));if(r.ok)loadBusiness();}
+async function loadBusiness(){if(!$('#businessName'))return;const r=await fetch('api/business.php');if(!r.ok)return;const d=await r.json(),b=d.business;const map={businessName:'name',businessCategory:'category',businessAddress:'address',businessDescription:'description',businessServices:'service_details',businessPayments:'payment_methods',businessMenu:'menu_details',businessFacilities:'facility_details'};Object.entries(map).forEach(([id,k])=>{$('#'+id).value=b[k]||'';});$('#businessPublic').checked=!!Number(b.is_public);$('#publicBusinessLink').href=d.public_url;const qr=$('#businessQr');qr.innerHTML='';if(window.QRCode)new QRCode(qr,{text:new URL(d.public_url,location.href).href,width:128,height:128});const rows=[...d.phrases.map(x=>({type:'phrase',id:x.id,title:x.source_text,text:x.translated_text+' · '+x.target_language})),...d.faqs.map(x=>({type:'faq',id:x.id,title:x.question,text:x.answer})),...d.terms.map(x=>({type:'term',id:x.id,title:x.term,text:x.explanation}))];$('#businessContent').innerHTML=rows.length?rows.map(x=>'<div class="record-item"><div><strong>'+escapeHtml(x.title)+'</strong><small>'+escapeHtml(x.text)+'</small></div><button data-business-delete="'+x.type+':'+x.id+'">×</button></div>').join(''):'<div class="empty-state">No managed content.</div>';$('#businessReports').innerHTML=d.reports.length?table(['Category','Language','Total'],d.reports.map(x=>[x.category,x.language_code||'—',x.total])):'<div class="empty-state">No interactions yet.</div>';$$('[data-business-delete]').forEach(el=>el.onclick=()=>{const [type,id]=el.dataset.businessDelete.split(':');businessAction({action:'delete_item',item_type:type,id:Number(id)},'Item deleted.');});}
+$('#saveBusiness')?.addEventListener('click',()=>businessAction({action:'save_profile',name:$('#businessName').value,category:$('#businessCategory').value,address:$('#businessAddress').value,description:$('#businessDescription').value,service_details:$('#businessServices').value,payment_methods:$('#businessPayments').value,menu_details:$('#businessMenu').value,facility_details:$('#businessFacilities').value,is_public:$('#businessPublic').checked},'Business profile saved.'));$('#addBusinessPhrase')?.addEventListener('click',()=>businessAction({action:'add_phrase',source_text:$('#phraseSource').value,translated_text:$('#phraseTranslated').value,suggested_reply:$('#phraseReply').value,target_language:$('#phraseTarget').value,category:$('#phraseCategory').value},'Phrase added.'));$('#addFaq')?.addEventListener('click',()=>businessAction({action:'add_faq',question:$('#faqQuestion').value,answer:$('#faqAnswer').value},'FAQ added.'));$('#addBusinessTerm')?.addEventListener('click',()=>businessAction({action:'add_term',term:$('#businessTerm').value,explanation:$('#businessTermExplanation').value},'Term saved.'));
 
-function translatedValue(){
-const source=$('#sourceText').value.trim();
-const key=$('#sourceLanguage').value+'-'+$('#targetLanguage').value;
-if($('#sourceLanguage').value===$('#targetLanguage').value)return source;
-return (dictionary[key]||{})[source.toLowerCase()]||null;
-}
+function table(head,rows){return '<div class="table-wrap"><table class="data-table"><thead><tr>'+head.map(x=>'<th>'+escapeHtml(x)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+escapeHtml(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';}
+async function loadInsights(){if(!$('#insightTranslations'))return;const q=new URLSearchParams();if($('#insightFrom').value)q.set('from',$('#insightFrom').value);if($('#insightTo').value)q.set('to',$('#insightTo').value);const r=await fetch('api/insights.php?'+q);if(!r.ok)return;const d=await r.json(),s=d.stats;$('#insightTranslations').textContent=s.translations;$('#insightReports').textContent=s.unclear_reports;$('#insightBusinesses').textContent=s.businesses;$('#insightPending').textContent=s.pending_businesses;$('#insightEvents').innerHTML=(d.events.length?table(['Event','Language','Scenario','Location','Business','Term','Total'],d.events.map(x=>[x.event_type,x.language_code,x.scenario,x.location_label,x.business_type,x.term_label,x.total])):'<div class="empty-state">No consented events.</div>')+(d.business_analysis.length?'<h3>Business type and communication category</h3>'+table(['Business type','Category','Total'],d.business_analysis.map(x=>[x.business_type,x.communication_category,x.total])):'')+(d.peak_periods.length?'<h3>Peak periods</h3>'+table(['Hour','Total'],d.peak_periods.map(x=>[x.hour_of_day+':00',x.total])):'');$('#insightIssues').innerHTML=(d.issues.length?table(['Issue','Language','Scenario','Total','Confidence'],d.issues.map(x=>[x.issue_type,x.language_code,x.scenario,x.total,x.average_confidence||'—'])):'')+(d.repeated_questions.length?'<h3>Repeated tourist enquiries</h3>'+table(['Question','Total'],d.repeated_questions.map(x=>[x.question_label,x.total])):'');$('#insightRecommendations').innerHTML=d.recommendations.map(x=>'<div class="scenario-step">'+escapeHtml(x)+'</div>').join('');$('#exportInsights').href='api/insights.php?'+q+'&format=csv';}
+$('#filterInsights')?.addEventListener('click',loadInsights);
+async function loadAdmin(){if(!$('#adminUsers'))return;const r=await fetch('api/admin.php');if(!r.ok)return;const d=await r.json();$('#adminUsers').textContent=d.stats.users;$('#adminBusinesses').textContent=d.stats.businesses;$('#adminPending').textContent=d.stats.pending;$('#adminTranslations').textContent=d.stats.translations;$('#pendingBusinesses').innerHTML=d.pending.map(b=>'<div class="record-item"><div><strong>'+escapeHtml(b.name)+'</strong><small>'+escapeHtml(b.category)+' · '+escapeHtml(b.email)+'</small></div><span><button data-decision="approve" data-bid="'+b.id+'">Approve</button><button data-decision="reject" data-bid="'+b.id+'">Reject</button></span></div>').join('')||'<div class="empty-state">No pending businesses.</div>';$$('[data-decision]').forEach(b=>b.onclick=async()=>{await jsonFetch('api/admin.php',{method:'POST',body:JSON.stringify({business_id:Number(b.dataset.bid),decision:b.dataset.decision,csrf:window.JOM.csrf})});loadAdmin();loadInsights();});}
 
-async function translate(){
-const source=$('#sourceText').value.trim();
-if(!source){toast('Enter a message first.');return;}
-const from=$('#sourceLanguage').value,to=$('#targetLanguage').value;
-const button=$('#translateButton'),old=button?.textContent;
-if(button){button.disabled=true;button.textContent='Translating…';}
-try{
-let result=translatedValue();
-if(result===null){
-const response=await fetch('api/translate.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:source,from,to})});
-if(!response.ok)throw new Error(await apiMessage(response,'Translation failed.'));
-result=(await response.json()).translation;
-if(typeof result!=='string'||!result)throw new Error('Translation service returned an invalid result.');
-}
-currentTranslation=result;
-translationState={source,from,to};
-$('#translationResult').textContent=result;
-setTranslationActions(true);
-
-const historyEnabled=$('#historyConsent')?$('#historyConsent').checked:usesServerHistory();
-if(historyEnabled){
-await saveRecord({record_type:'translation',title:source,content:result,metadata:{from,to}});
-}
-}catch(e){
-currentTranslation='';translationState=null;
-$('#translationResult').textContent=e.message||'Translation is temporarily unavailable.';
-setTranslationActions(false);
-toast(e.message||'Translation failed.');
-}finally{
-if(button){button.disabled=false;button.textContent=old;}
-}
-}
-
-async function googleSpeak(text,language){
-if(!text||!translationIsCurrent()){toast('Press Translate again before using speech.');return;}
-const button=$('#speakResult');
-const old=button?.textContent;
-if(button){button.disabled=true;button.textContent='Generating voice…';}
-try{
-const response=await fetch('api/speech.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language})});
-if(!response.ok){
-let message='Google speech failed.';
-try{const data=await response.json();message=data.message||message;}catch(e){}
-throw new Error(message);
-}
-const blob=await response.blob();
-const url=URL.createObjectURL(blob);
-const audio=new Audio(url);
-audio.addEventListener('ended',()=>URL.revokeObjectURL(url),{once:true});
-await audio.play();
-}catch(e){
-toast(e.message||'Could not play speech.');
-}finally{
-if(button){button.disabled=false;button.textContent=old;}
-}
-}
-
-function listen(language,callback){
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!SR){toast('Speech recognition is not supported in this browser.');return;}
-const rec=new SR();
-rec.lang=recognitionLocales[language]||'en-US';
-rec.interimResults=false;
-rec.onstart=()=>toast('Listening…');
-rec.onerror=()=>toast('Could not hear you. Try again.');
-rec.onresult=e=>callback(e.results[0][0].transcript);
-rec.start();
-}
-
-async function loadRecords(){
-if(usesServerHistory()){
-try{
-const r=await fetch('api/records.php',{headers:{Accept:'application/json'}});
-if(!r.ok)throw new Error(await apiMessage(r,'Server history unavailable.'));
-records=(await r.json()).records||[];
-}catch(e){records=[];toast(e.message);}
-}else if(!window.JOM.authenticated)records=localRecords();
-else records=[];
-renderRecords();
-}
-
-async function saveRecord(record){
-record.created_at=new Date().toISOString();
-if(usesServerHistory()){
-try{
-const r=await fetch('api/records.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,csrf:window.JOM.csrf})});
-if(!r.ok)throw new Error(await apiMessage(r,'Server history unavailable.'));
-record.id=(await r.json()).id;
-records.unshift(record);renderRecords();return;
-}catch(e){toast(e.message||'Server history unavailable; saved in this browser.');}
-}
-record.id='local-'+Date.now()+'-'+Math.random().toString(16).slice(2);
-const local=localRecords();local.unshift(record);saveLocal(local);
-records.unshift(record);renderRecords();
-}
-
-async function deleteRecord(id){
-if(String(id).startsWith('local-')){
-const local=localRecords().filter(r=>String(r.id)!==String(id));saveLocal(local);
-}else if(usesServerHistory()){
-const r=await fetch('api/records.php?id='+encodeURIComponent(id),{method:'DELETE',headers:{'X-CSRF-Token':window.JOM.csrf}});
-if(!r.ok){toast(await apiMessage(r,'Could not delete record.'));return;}
-}
-records=records.filter(r=>String(r.id)!==String(id));renderRecords();
-}
-
-function recordHtml(r){
-return '<div class="record-item"><div><strong>'+escapeHtml(r.title)+'</strong><small>'+escapeHtml(r.content)+'</small></div><button data-delete-record="'+escapeHtml(r.id)+'">×</button></div>';
-}
-function renderRecords(){
-const translations=records.filter(r=>r.record_type==='translation').slice(0,5);
-const phrases=records.filter(r=>r.record_type==='phrase').slice(0,20);
-$('#recentTranslations').innerHTML=translations.length?translations.map(recordHtml).join(''):'<div class="empty-state">No translation history yet.</div>';
-$('#savedPhrases').innerHTML=phrases.length?phrases.map(recordHtml).join(''):'<div class="empty-state">No saved phrases yet.</div>';
-$$('[data-delete-record]').forEach(b=>b.onclick=()=>deleteRecord(b.dataset.deleteRecord));
-}
-
-function renderScenario(){
-const steps=scenarios[$('#scenarioSelect').value]||[];
-$('#scenarioSteps').innerHTML=steps.map((s,i)=>'<div class="scenario-step"><strong>'+(i+1)+'. '+escapeHtml(s[0])+'</strong><span>'+escapeHtml(s[1])+'</span></div>').join('');
-}
-
-function updateCharacterCount(){$('#characterCount').textContent=$('#sourceText').value.length;}
-$('#sourceText')?.addEventListener('input',()=>{updateCharacterCount();invalidateTranslation();});
-$('#sourceLanguage')?.addEventListener('change',invalidateTranslation);
-$('#targetLanguage')?.addEventListener('change',invalidateTranslation);
-$('#translateButton')?.addEventListener('click',translate);
-$('#swapLanguages')?.addEventListener('click',()=>{
-const a=$('#sourceLanguage').value,b=$('#targetLanguage').value;$('#sourceLanguage').value=b;$('#targetLanguage').value=a;
-invalidateTranslation();
-});
-$('#listenInput')?.addEventListener('click',()=>listen($('#sourceLanguage').value,text=>{$('#sourceText').value=text;updateCharacterCount();invalidateTranslation();}));
-$('#speakResult')?.addEventListener('click',()=>googleSpeak(currentTranslation,$('#targetLanguage').value));
-$('#copyResult')?.addEventListener('click',async()=>{
-if(!translationIsCurrent()){toast('Press Translate again before copying.');return;}
-try{await navigator.clipboard.writeText(currentTranslation);toast('Copied.');}catch(e){toast('Copy is unavailable.');}
-});
-$('#savePhrase')?.addEventListener('click',async()=>{
-const source=$('#sourceText').value.trim();
-if(!source||!translationIsCurrent()){toast('Press Translate again before saving this phrase.');return;}
-await saveRecord({record_type:'phrase',title:source,content:currentTranslation,metadata:{from:$('#sourceLanguage').value,to:$('#targetLanguage').value}});
-toast('Phrase saved.');
-});
-$('#scenarioSelect')?.addEventListener('change',renderScenario);
-$('#fullscreenEmergency')?.addEventListener('click',()=>{$('#emergencyOverlay').classList.add('open');$('#emergencyOverlay').setAttribute('aria-hidden','false');});
-$('#closeEmergency')?.addEventListener('click',()=>{$('#emergencyOverlay').classList.remove('open');$('#emergencyOverlay').setAttribute('aria-hidden','true');});
-
-function localPrivacy(){
-try{return {...{save_history:true,analytics:false},...JSON.parse(localStorage.getItem(privacyKey)||'{}')};}
-catch(e){return {save_history:true,analytics:false};}
-}
-function applyPrivacy(preferences){
-if($('#historyConsent'))$('#historyConsent').checked=!!preferences.save_history;
-if($('#analyticsConsent'))$('#analyticsConsent').checked=!!preferences.analytics;
-}
-async function loadPrivacyPreferences(){
-if(window.JOM.authenticated&&window.JOM.role==='tourist'){
-try{
-const response=await fetch('api/preferences.php',{headers:{Accept:'application/json'}});
-if(!response.ok)throw new Error(await apiMessage(response,'Could not load privacy choices.'));
-applyPrivacy((await response.json()).preferences||{});return;
-}catch(e){toast(e.message);}
-}
-applyPrivacy(localPrivacy());
-}
-async function savePrivacyPreferences(){
-const preferences={save_history:$('#historyConsent').checked,analytics:$('#analyticsConsent').checked};
-if(window.JOM.authenticated&&window.JOM.role==='tourist'){
-const response=await fetch('api/preferences.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...preferences,csrf:window.JOM.csrf})});
-if(!response.ok){toast(await apiMessage(response,'Could not save privacy choices.'));return;}
-toast('Privacy choices saved.');return;
-}
-localStorage.setItem(privacyKey,JSON.stringify(preferences));
-toast('Privacy choices saved in this browser.');
-}
-$('#historyConsent')?.addEventListener('change',savePrivacyPreferences);
-$('#analyticsConsent')?.addEventListener('change',savePrivacyPreferences);
-
-async function loadBusiness(){
-if(!$('#businessName'))return;
-try{
-const r=await fetch('api/business.php');if(!r.ok)throw new Error(await apiMessage(r,'Business profile unavailable.'));
-const data=await r.json(),b=data.business;
-$('#businessName').value=b.name||'';$('#businessCategory').value=b.category||'';$('#businessAddress').value=b.address||'';
-$('#businessPhrases').innerHTML=data.phrases.length?'<table class="data-table"><thead><tr><th>English</th><th>Translation</th><th>Language</th><th>Category</th></tr></thead><tbody>'+data.phrases.map(p=>'<tr><td>'+escapeHtml(p.source_text)+'</td><td>'+escapeHtml(p.translated_text)+'</td><td>'+escapeHtml(p.target_language)+'</td><td>'+escapeHtml(p.category)+'</td></tr>').join('')+'</tbody></table>':'<div class="empty-state">No phrases yet.</div>';
-}catch(e){$('#businessPhrases').innerHTML='<div class="empty-state">'+escapeHtml(e.message||'Business profile unavailable.')+'</div>';}
-}
-$('#saveBusiness')?.addEventListener('click',async()=>{
-const body={action:'save_profile',name:$('#businessName').value,category:$('#businessCategory').value,address:$('#businessAddress').value,csrf:window.JOM.csrf};
-const r=await fetch('api/business.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-toast(r.ok?'Business profile saved.':await apiMessage(r,'Could not save business profile.'));if(r.ok)loadBusiness();
-});
-$('#addBusinessPhrase')?.addEventListener('click',async()=>{
-const body={action:'add_phrase',source_text:$('#phraseSource').value,translated_text:$('#phraseTranslated').value,target_language:$('#phraseTarget').value,category:$('#phraseCategory').value,csrf:window.JOM.csrf};
-const r=await fetch('api/business.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-if(r.ok){$('#phraseSource').value='';$('#phraseTranslated').value='';toast('Phrase added.');loadBusiness();}else toast(await apiMessage(r,'Could not add phrase.'));
-});
-
-async function loadInsights(){
-if(!['editor','admin'].includes(window.JOM.role)||!$('#insightTranslations'))return;
-try{
-const response=await fetch('api/insights.php',{headers:{Accept:'application/json'}});
-if(!response.ok)throw new Error(await apiMessage(response,'Insights unavailable.'));
-const stats=(await response.json()).stats;
-$('#insightTranslations').textContent=stats.translations;
-$('#insightPhrases').textContent=stats.phrases;
-$('#insightBusinesses').textContent=stats.businesses;
-$('#insightPending').textContent=stats.pending_businesses;
-}catch(e){toast(e.message);}
-}
-
-async function loadAdmin(){
-if(window.JOM.role!=='admin'||!$('#adminUsers'))return;
-try{
-const r=await fetch('api/admin.php');if(!r.ok)throw new Error(await apiMessage(r,'Admin data unavailable.'));
-const d=await r.json();
-$('#adminUsers').textContent=d.stats.users;$('#adminBusinesses').textContent=d.stats.businesses;$('#adminPending').textContent=d.stats.pending;$('#adminTranslations').textContent=d.stats.translations;
-$('#pendingBusinesses').innerHTML=d.pending.length?d.pending.map(b=>'<div class="record-item"><div><strong>'+escapeHtml(b.name)+'</strong><small>'+escapeHtml(b.category)+' · '+escapeHtml(b.email)+'</small></div><span><button class="approve" data-bid="'+b.id+'" data-decision="approve">Approve</button> <button class="reject" data-bid="'+b.id+'" data-decision="reject">Reject</button></span></div>').join(''):'<div class="empty-state">No pending businesses.</div>';
-$$('[data-decision]').forEach(btn=>btn.onclick=()=>decideBusiness(btn.dataset.bid,btn.dataset.decision));
-}catch(e){toast(e.message||'Admin data unavailable.');}
-}
-async function decideBusiness(id,decision){
-const r=await fetch('api/admin.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business_id:Number(id),decision,csrf:window.JOM.csrf})});
-toast(r.ok?'Registration updated.':await apiMessage(r,'Could not update registration.'));if(r.ok){loadAdmin();loadInsights();}
-}
-
-async function initialize(){
-updateCharacterCount();setTranslationActions(true);renderScenario();
-await loadPrivacyPreferences();
-await Promise.all([loadRecords(),loadBusiness(),loadInsights(),loadAdmin()]);
-}
-initialize();
-const start=location.hash.slice(1);if(start&&document.getElementById(start)?.classList.contains('page'))showPage(start);
+async function init(){actions(false);await loadPreferences();await Promise.all([loadRecords(),loadGlossary(),loadAssistance(),loadProfile(),loadBusiness(),loadInsights(),loadAdmin()]);}init();const start=location.hash.slice(1);if(start&&document.getElementById(start)?.classList.contains('page'))showPage(start);
 }());

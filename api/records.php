@@ -6,6 +6,7 @@ header('Cache-Control: no-store');
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/validation.php';
 
 function reply(array $body, int $status = 200): never {
     http_response_code($status);
@@ -32,7 +33,7 @@ try {
     if ($method === 'GET') {
         $type = trim((string)($_GET['type'] ?? ''));
         $params = [$userId];
-        $sql = 'SELECT id, record_type, title, content, metadata, created_at FROM records WHERE user_id = ?';
+        $sql = 'SELECT id, record_type, title, content, source_language, target_language, scenario, confidence, is_favorite, metadata, created_at FROM records WHERE user_id = ?';
         if ($type !== '') {
             $allowed = ['translation','phrase'];
             if (!in_array($type, $allowed, true)) reply(['ok'=>false,'message'=>'Invalid type.'],422);
@@ -70,9 +71,21 @@ try {
         }
 
         $metadata = json_encode($input['metadata'] ?? new stdClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $stmt = $db->prepare('INSERT INTO records (user_id, record_type, title, content, metadata) VALUES (?, ?, ?, ?, ?)');
-        $stmt->execute([$userId, $type, mb_substr($title,0,150), mb_substr($content,0,5000), $metadata]);
+        $from=isset($input['source_language'])?clean_language($input['source_language'],true):null;
+        $to=isset($input['target_language'])?clean_language($input['target_language']):null;
+        $scenario=isset($input['scenario'])?clean_scenario($input['scenario']):null;
+        $confidence=clean_confidence($input['confidence']??null);
+        $stmt = $db->prepare('INSERT INTO records (user_id, record_type, title, content, source_language, target_language, scenario, confidence, is_favorite, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt->execute([$userId, $type, mb_substr($title,0,150), mb_substr($content,0,5000), $from, $to, $scenario, $confidence, !empty($input['is_favorite'])?1:0, $metadata]);
         reply(['ok'=>true,'id'=>(int)$db->lastInsertId()],201);
+    }
+
+    if ($method === 'PATCH') {
+        $input=json_decode((string)file_get_contents('php://input'),true);
+        if(!is_array($input)||!verify_csrf($input['csrf']??null))reply(['ok'=>false,'message'=>'Invalid request token.'],403);
+        $id=(int)($input['id']??0);if($id<1)reply(['ok'=>false,'message'=>'Valid id required.'],422);
+        $stmt=$db->prepare('UPDATE records SET is_favorite=? WHERE id=? AND user_id=?');
+        $stmt->execute([!empty($input['is_favorite'])?1:0,$id,$userId]);reply(['ok'=>true,'updated'=>$stmt->rowCount()]);
     }
 
     if ($method === 'DELETE') {

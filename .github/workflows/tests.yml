@@ -1,0 +1,37 @@
+name: PHP application tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: jomcommunicate
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_mysql, curl
+      - name: PHP syntax
+        run: find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+      - name: JavaScript syntax
+        run: node --check assets/js/app.js
+      - name: Import clean schema
+        run: mysql -h 127.0.0.1 -u root < database/jomcommunicate.sql
+      - name: Application checks
+        run: php tests/run.php
+      - name: Database checks
+        run: php tests/database.php
+      - name: Guest HTTP smoke tests
+        run: bash tests/smoke.sh

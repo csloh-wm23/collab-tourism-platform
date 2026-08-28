@@ -1,42 +1,16 @@
 <?php
 declare(strict_types=1);
-
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store');
-
-require_once __DIR__ . '/../config/auth.php';
-
-function insights_reply(array $body, int $status = 200): never
-{
-    http_response_code($status);
-    echo json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
-}
-
-if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
-    header('Allow: GET');
-    insights_reply(['ok'=>false,'message'=>'Method not allowed.'],405);
-}
-
-$user = current_user();
-if (!$user || !in_array((string)($user['role'] ?? ''), ['editor','admin'], true) || ($user['status'] ?? '') !== 'active') {
-    insights_reply(['ok'=>false,'message'=>'Active editor or administrator access required.'],403);
-}
-
-try {
-    $db = database();
-    $recordPhrases = (int)$db->query("SELECT COUNT(*) FROM records WHERE record_type='phrase'")->fetchColumn();
-    $businessPhrases = (int)$db->query('SELECT COUNT(*) FROM business_phrases')->fetchColumn();
-    insights_reply([
-        'ok'=>true,
-        'stats'=>[
-            'translations'=>(int)$db->query("SELECT COUNT(*) FROM records WHERE record_type='translation'")->fetchColumn(),
-            'phrases'=>$recordPhrases + $businessPhrases,
-            'businesses'=>(int)$db->query("SELECT COUNT(*) FROM users WHERE role='business'")->fetchColumn(),
-            'pending_businesses'=>(int)$db->query("SELECT COUNT(*) FROM businesses WHERE verification_status='pending'")->fetchColumn(),
-        ],
-    ]);
-} catch (Throwable $e) {
-    error_log('Insights error: ' . $e->getMessage());
-    insights_reply(['ok'=>false,'message'=>'Insights are temporarily unavailable.'],500);
-}
+require_once __DIR__.'/../config/auth.php';
+$user=current_user();if(!$user||!in_array((string)($user['role']??''),['editor','admin'],true)||($user['status']??'')!=='active'){http_response_code(403);header('Content-Type: application/json');exit(json_encode(['ok'=>false,'message'=>'Active editor or administrator access required.']));}
+$db=database();$from=preg_match('/^\d{4}-\d{2}-\d{2}$/',(string)($_GET['from']??''))?(string)$_GET['from']:'2000-01-01';$to=preg_match('/^\d{4}-\d{2}-\d{2}$/',(string)($_GET['to']??''))?(string)$_GET['to']:date('Y-m-d');
+try{
+ $event=$db->prepare('SELECT event_type,COALESCE(language_code,"—") language_code,COALESCE(scenario,"—") scenario,COALESCE(location_label,"—") location_label,COALESCE(business_type,"—") business_type,COALESCE(term_label,"—") term_label,COUNT(*) total FROM analytics_events WHERE created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY event_type,language_code,scenario,location_label,business_type,term_label ORDER BY total DESC');$event->execute([$from,$to]);$events=$event->fetchAll();
+ $reports=$db->prepare('SELECT issue_type,COALESCE(target_language,"—") language_code,COALESCE(scenario,"—") scenario,COUNT(*) total,ROUND(AVG(confidence),2) average_confidence FROM translation_reports WHERE created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY issue_type,target_language,scenario ORDER BY total DESC');$reports->execute([$from,$to]);$issues=$reports->fetchAll();
+ $repeated=$db->prepare('SELECT question_label,COUNT(*) total FROM business_interactions WHERE created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) AND question_label IS NOT NULL GROUP BY question_label HAVING total>1 ORDER BY total DESC LIMIT 20');$repeated->execute([$from,$to]);$questions=$repeated->fetchAll();
+ $businessAnalysis=$db->prepare('SELECT b.category business_type,i.category communication_category,COUNT(*) total FROM business_interactions i JOIN businesses b ON b.id=i.business_id WHERE i.created_at>=? AND i.created_at<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY b.category,i.category ORDER BY total DESC');$businessAnalysis->execute([$from,$to]);
+ $peak=$db->prepare('SELECT HOUR(created_at) hour_of_day,COUNT(*) total FROM analytics_events WHERE created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY HOUR(created_at) ORDER BY total DESC LIMIT 8');$peak->execute([$from,$to]);
+ $stats=['translations'=>(int)$db->query("SELECT COUNT(*) FROM records WHERE record_type='translation'")->fetchColumn(),'phrases'=>(int)$db->query("SELECT (SELECT COUNT(*) FROM records WHERE record_type='phrase')+(SELECT COUNT(*) FROM business_phrases)")->fetchColumn(),'businesses'=>(int)$db->query("SELECT COUNT(*) FROM users WHERE role='business'")->fetchColumn(),'pending_businesses'=>(int)$db->query("SELECT COUNT(*) FROM businesses WHERE verification_status='pending'")->fetchColumn(),'unclear_reports'=>array_sum(array_map(fn($r)=>(int)$r['total'],$issues))];
+ $recommendations=[];if($issues)$recommendations[]='Review the most reported language and scenario before expanding its phrase pack.';if($questions)$recommendations[]='Add an approved quick reply for the most repeated tourist enquiry.';if(!$recommendations)$recommendations[]='Collect consented anonymous usage to generate improvement recommendations.';
+ if(($_GET['format']??'')==='csv'){header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="jomcommunicate-anonymous-report.csv"');$out=fopen('php://output','w');fputcsv($out,['anonymous event','language','scenario','location','business type','term','total']);foreach($events as $row)fputcsv($out,array_values($row));fclose($out);exit;}
+ header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');echo json_encode(['ok'=>true,'stats'=>$stats,'events'=>$events,'issues'=>$issues,'repeated_questions'=>$questions,'business_analysis'=>$businessAnalysis->fetchAll(),'peak_periods'=>$peak->fetchAll(),'recommendations'=>$recommendations,'filters'=>['from'=>$from,'to'=>$to]],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+}catch(Throwable $e){error_log('Insights: '.$e->getMessage());http_response_code(500);header('Content-Type: application/json');echo json_encode(['ok'=>false,'message'=>'Insights are temporarily unavailable.']);}

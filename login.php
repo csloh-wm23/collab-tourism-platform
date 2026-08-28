@@ -19,16 +19,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             $db = database();
-            $stmt = $db->prepare('SELECT id, full_name, email, password_hash, role, status, preferred_language FROM users WHERE email = ? LIMIT 1');
+            $stmt = $db->prepare('SELECT id, full_name, email, password_hash, role, status, preferred_language, failed_login_attempts, locked_until FROM users WHERE email = ? LIMIT 1');
             $stmt->execute([$email]);
             $user = $stmt->fetch();
 
-            if (!$user || !password_verify($password, (string)$user['password_hash'])) {
-                $error = 'Incorrect email or password.';
+            $locked = $user && !empty($user['locked_until']) && strtotime((string)$user['locked_until']) > time();
+            if ($locked) {
+                $minutes = max(1, (int)ceil((strtotime((string)$user['locked_until']) - time()) / 60));
+                $error = "Too many failed attempts. Try again in {$minutes} minute(s).";
+            } elseif (!$user || !password_verify($password, (string)$user['password_hash'])) {
+                if ($user) {
+                    $attempts = (int)$user['failed_login_attempts'] + 1;
+                    if ($attempts >= 5) {
+                        $db->prepare('UPDATE users SET failed_login_attempts=0, locked_until=DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id=?')->execute([(int)$user['id']]);
+                        $error = 'Too many failed attempts. Try again in 15 minutes.';
+                    } else {
+                        $db->prepare('UPDATE users SET failed_login_attempts=? WHERE id=?')->execute([$attempts,(int)$user['id']]);
+                        $error = 'Incorrect email or password.';
+                    }
+                } else {
+                    $error = 'Incorrect email or password.';
+                }
             } elseif ($user['status'] === 'suspended') {
                 $error = 'This account is suspended.';
             } else {
-                unset($user['password_hash']);
+                $db->prepare('UPDATE users SET failed_login_attempts=0, locked_until=NULL WHERE id=?')->execute([(int)$user['id']]);
+                unset($user['password_hash'],$user['failed_login_attempts'],$user['locked_until']);
                 session_regenerate_id(true);
                 $_SESSION['user'] = $user;
                 header('Location: index.php');

@@ -43,7 +43,8 @@ $voices = [
     'en' => ['languageCode' => 'en-US', 'name' => 'en-US-Standard-C'],
     'ms' => ['languageCode' => 'ms-MY', 'name' => 'ms-MY-Standard-A'],
     'zh' => ['languageCode' => 'cmn-CN', 'name' => 'cmn-CN-Standard-A'],
-    'ta' => ['languageCode' => 'ta-IN', 'name' => 'ta-IN-Standard-A'],
+    'id' => ['languageCode' => 'id-ID', 'name' => 'id-ID-Standard-A'],
+    'th' => ['languageCode' => 'th-TH', 'name' => 'th-TH-Standard-A'],
 ];
 
 if ($text === '' || mb_strlen($text) > 500) {

@@ -1,169 +1,30 @@
 <?php
-declare(strict_types=1);
-
-require_once __DIR__ . '/config/auth.php';
-
-$user = current_user();
-$role = $user['role'] ?? 'guest';
-$name = $user['full_name'] ?? 'Guest visitor';
-$businessVerification = null;
-if ($user && $role === 'business') {
-    try {
-        $stmt = database()->prepare('SELECT verification_status FROM businesses WHERE owner_user_id=? LIMIT 1');
-        $stmt->execute([(int)$user['id']]);
-        $businessVerification = $stmt->fetchColumn() ?: null;
-    } catch (Throwable $e) {
-        error_log('Unable to load business verification status: ' . $e->getMessage());
-    }
-}
-$businessApproved = $role === 'business'
-    && ($user['status'] ?? '') === 'active'
-    && $businessVerification === 'approved';
-$initials = 'GV';
-if ($user) {
-    $parts = preg_split('/\s+/', trim((string)$user['full_name'])) ?: [];
-    $initials = strtoupper(substr((string)($parts[0] ?? 'U'),0,1) . substr((string)($parts[count($parts)-1] ?? ''),0,1));
-}
-$year = date('Y');
+declare(strict_types=1);require_once __DIR__.'/config/auth.php';
+$user=current_user();$role=$user['role']??'guest';$name=$user['full_name']??'Guest visitor';$approved=false;
+if($user&&$role==='business'){try{$s=database()->prepare('SELECT verification_status FROM businesses WHERE owner_user_id=?');$s->execute([(int)$user['id']]);$approved=$s->fetchColumn()==='approved'&&($user['status']??'')==='active';}catch(Throwable $e){}}
+$staff=in_array($role,['editor','admin'],true)&&($user['status']??'')==='active';
+function options(bool $auto=false):string{$l=($auto?['auto'=>'Automatic detection']:[])+['en'=>'English','ms'=>'Bahasa Malaysia','zh'=>'Mandarin Chinese','id'=>'Indonesian','th'=>'Thai'];$h='';foreach($l as $v=>$n)$h.='<option value="'.htmlspecialchars($v).'">'.htmlspecialchars($n).'</option>';return $h;}
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="JomCommunicate Malaysia tourism communication platform">
-<title>JomCommunicate</title>
-<link rel="stylesheet" href="assets/css/styles.css">
-</head>
-<body data-role="<?= htmlspecialchars($role) ?>" data-authenticated="<?= $user?'1':'0' ?>">
-<div class="app-shell">
-<aside class="sidebar">
-<a class="brand" href="#communication"><span class="brand-mark">JC</span><span>JomCommunicate<small>Travel without language barriers</small></span></a>
-<nav>
-<button class="nav-link active" data-page="communication">💬 Communication</button>
-<button class="nav-link" data-page="assistance">🧭 Smart assistance</button>
-<button class="nav-link" data-page="journey">🧳 My journey</button>
-<?php if ($businessApproved): ?><button class="nav-link" data-page="business">🏪 Business portal</button><?php endif; ?>
-<?php if (in_array($role,['editor','admin'],true) && ($user['status']??'')==='active'): ?><button class="nav-link" data-page="insights">📊 Insights</button><?php endif; ?>
-<?php if ($role==='admin' && ($user['status']??'')==='active'): ?><button class="nav-link" data-page="admin">⚙️ Administration</button><?php endif; ?>
-</nav>
-<div class="sidebar-foot"><span class="status-dot"></span> PHP · MySQL · Google Cloud</div>
-</aside>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="JomCommunicate Malaysia tourism communication platform"><title>JomCommunicate</title><link rel="stylesheet" href="assets/css/styles.css"></head>
+<body data-role="<?=htmlspecialchars($role)?>"><div class="app-shell"><aside class="sidebar"><a class="brand" href="#communication"><span class="brand-mark">JC</span><span>JomCommunicate<small>Travel without language barriers</small></span></a><nav>
+<button class="nav-link active" data-page="communication">💬 Communication</button><button class="nav-link" data-page="assistance">🧭 Smart assistance</button><button class="nav-link" data-page="journey">🧳 My journey</button><?php if($approved):?><button class="nav-link" data-page="business">🏪 Business portal</button><?php endif;?><?php if($staff):?><button class="nav-link" data-page="insights">📊 Insights</button><?php endif;?><?php if($role==='admin'&&$staff):?><button class="nav-link" data-page="admin">⚙️ Administration</button><?php endif;?></nav><div class="sidebar-foot"><span class="status-dot"></span> PHP · MySQL · Google Cloud</div></aside>
+<main class="main-area"><header class="topbar"><button id="menuButton" class="icon-button">☰</button><div><strong>Malaysia visitor support</strong><small id="todayLabel"></small></div><div class="top-actions"><button id="contrastButton" class="icon-button">◐</button><div class="profile-chip"><span>JC</span><div><strong><?=htmlspecialchars($name)?></strong><small><?=htmlspecialchars(ucfirst($role))?></small></div></div><?php if($user):?><form method="post" action="logout.php"><input type="hidden" name="csrf" value="<?=htmlspecialchars(csrf_token())?>"><button class="small-button">Log out</button></form><?php else:?><a class="small-button" href="login.php">Log in</a><a class="small-button primary-link" href="register.php">Register</a><?php endif;?></div></header><div class="content-wrap">
 
-<main class="main-area">
-<header class="topbar">
-<button id="menuButton" class="icon-button">☰</button>
-<div><strong>Malaysia visitor support</strong><small id="todayLabel"></small></div>
-<div class="top-actions">
-<button id="contrastButton" class="icon-button" title="High contrast">◐</button>
-<div class="profile-chip"><span><?= htmlspecialchars($initials) ?></span><div><strong><?= htmlspecialchars($name) ?></strong><small><?= htmlspecialchars(ucfirst($role)) ?></small></div></div>
-<?php if ($user): ?>
-<form method="post" action="logout.php"><input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>"><button class="small-button">Log out</button></form>
-<?php else: ?><a class="small-button" href="login.php">Log in</a><a class="small-button primary-link" href="register.php">Register</a><?php endif; ?>
-</div>
-</header>
+<section class="page active" id="communication"><div class="page-heading"><div><span class="eyebrow">Real-time tourism communication</span><h1>Translate and speak</h1><p>Five-language text, voice and two-way tourism communication.</p></div><button id="largeMessage" class="secondary">Large-screen message</button></div>
+<div class="grid-two"><article class="card-panel"><h2>Conversation</h2><label>Tourism scenario<select id="communicationScenario"><option value="restaurant">Restaurant</option><option value="hotel">Hotel</option><option value="transport">Transportation</option><option value="shopping">Shopping</option><option value="medical">Medical</option><option value="emergency">Emergency</option><option value="culture">General / culture</option></select></label><div class="grid-two compact-grid"><label>From<select id="sourceLanguage"><?=options(true)?></select></label><label>To<select id="targetLanguage"><?=options()?></select></label></div><textarea id="sourceText" maxlength="500" rows="5" placeholder="Enter or speak a message"></textarea><div class="field-footer"><button id="listenInput" class="link-button">🎙 Speak</button><span><span id="characterCount">0</span>/500</span></div><label class="check-row"><input type="checkbox" id="twoWayMode"> Two-way conversation mode</label><div class="button-row"><button id="swapLanguages" class="secondary">⇄ Swap</button><button id="translateButton" class="primary">Translate</button></div></article>
+<article class="card-panel"><h2>Translation</h2><div id="translationResult" class="translation-result">Your translation appears here.</div><div id="translationMeta" class="meta-box">Language and confidence appear after translation.</div><div id="translationAlternatives" class="record-list"></div><div class="button-row"><button id="speakResult" class="secondary" disabled>🔊 Voice</button><button id="copyResult" class="secondary" disabled>⧉ Copy</button><button id="savePhrase" class="primary" disabled>＋ Save</button><button id="reportTranslation" class="danger" disabled>Report unclear</button></div><div id="twoWayReplies" class="chip-row"></div></article></div>
+<div class="grid-two mt"><article class="card-panel"><h2>Malaysian terminology</h2><div id="glossaryList" class="record-list"></div></article><article class="card-panel"><h2>Saved communication</h2><div id="recentTranslations" class="record-list"></div><h3>Favourites</h3><div id="savedPhrases" class="record-list"></div></article></div></section>
 
-<div class="content-wrap">
-<?php if ($role === 'business' && !$businessApproved): ?>
-<div class="alert warning account-notice" role="status">
-<?php if (($user['status']??'') === 'suspended'): ?>
-<h2>Business account suspended</h2><p>Protected account and Business Portal actions are unavailable. Contact an administrator for help.</p>
-<?php elseif ($businessVerification === 'rejected'): ?>
-<h2>Business registration rejected</h2><p>The Business Portal is unavailable. Contact an administrator if the registration details need to be reviewed.</p>
-<?php else: ?>
-<h2>Pending administrator approval</h2><p>You can use the public communication tools, but Business Portal functionality remains locked until an administrator approves the registration.</p>
-<?php endif; ?>
-</div>
-<?php elseif ($user && ($user['status']??'') === 'suspended'): ?>
-<div class="alert warning account-notice" role="status"><h2>Account suspended</h2><p>Protected account functions are unavailable. Contact an administrator for help.</p></div>
-<?php endif; ?>
-<section class="page active" id="communication">
-<div class="page-heading"><div><span class="eyebrow">Real-time tourism communication</span><h1>Translate and speak</h1><p>Live translation and voice playback powered by Google Cloud.</p></div><span class="pill" id="speechBadge">Google Cloud ready after setup</span></div>
-<div class="grid-two">
-<article class="card-panel">
-<h2>Translate a message</h2>
-<div class="grid-two compact-grid">
-<label>From<select id="sourceLanguage"><option value="en">English</option><option value="ms">Bahasa Melayu</option><option value="zh">Mandarin</option><option value="ta">Tamil</option></select></label>
-<label>To<select id="targetLanguage"><option value="ms">Bahasa Melayu</option><option value="en">English</option><option value="zh">Mandarin</option><option value="ta">Tamil</option></select></label>
-</div>
-<textarea id="sourceText" maxlength="500" rows="5">Where is the nearest train station?</textarea>
-<div class="field-footer"><button id="listenInput" class="link-button">🎙 Speak</button><span><span id="characterCount"></span>/500</span></div>
-<div class="button-row"><button id="swapLanguages" class="secondary">⇄ Swap</button><button id="translateButton" class="primary">Translate</button></div>
-</article>
+<section class="page" id="assistance"><div class="page-heading"><div><span class="eyebrow">Smart tourism assistance</span><h1>Guided travel help</h1><p>Questions, quick replies and cultural guidance for common situations.</p></div></div><div class="grid-two"><article class="card-panel"><label>Assistant<select id="scenarioSelect"><option value="restaurant">Restaurant</option><option value="hotel">Hotel check-in</option><option value="transport">Transportation</option><option value="shopping">Shopping</option><option value="medical">Medical</option><option value="emergency">Emergency</option></select></label><label>Destination<input id="packDestination" value="Malaysia" maxlength="120"></label><div class="button-row"><button id="loadScenario" class="primary">Load assistant</button><button id="saveDestinationPack" class="secondary">Save offline pack</button></div><div id="scenarioSteps" class="scenario-steps"></div></article><article class="card-panel"><h2>Needs and emergency card</h2><label>Dietary requirement<input id="assistDietary" placeholder="Vegetarian, halal…"></label><label>Allergies<input id="assistAllergy" placeholder="Peanuts, medicine…"></label><label>Religious requirement<input id="assistReligious" placeholder="No pork or alcohol, prayer room…"></label><label>Spice level<select id="assistSpice"><option>Mild</option><option>Medium</option><option>Spicy</option><option>Not spicy</option></select></label><label>Emergency details<textarea id="assistEmergency" rows="3" placeholder="Name, condition, contact"></textarea></label><button id="generateEmergency" class="danger">Generate bilingual emergency card</button><div id="culturalTips" class="meta-box"></div></article></div></section>
 
-<article class="card-panel">
-<h2>Translation</h2>
-<div id="translationResult" class="translation-result">Stesen kereta api terdekat di mana?</div>
-<div class="button-row">
-<button id="speakResult" class="secondary">🔊 Google voice</button>
-<button id="copyResult" class="secondary">⧉ Copy</button>
-<button id="savePhrase" class="primary">＋ Save phrase</button>
-</div>
-<p class="muted small">Curated tourism phrases work locally; Google Cloud translates other messages and reads results aloud.</p>
-</article>
-</div>
-<div class="grid-two mt">
-<article class="card-panel"><h2>Recent translations</h2><div id="recentTranslations" class="record-list"></div></article>
-<article class="card-panel"><h2>Saved phrases</h2><div id="savedPhrases" class="record-list"></div></article>
-</div>
-</section>
+<section class="page" id="journey"><div class="page-heading"><div><span class="eyebrow">Personalised tourist and journey</span><h1>My journey</h1><p><?= $user?'Manage your preferences and saved data.':'Guest phrases stay in this browser. Log in for a profile and destination packs.'?></p></div></div>
+<?php if($role==='tourist'&&$user):?><div class="grid-two"><article class="card-panel"><h2>Tourist profile</h2><label>Name<input id="profileName"></label><label>Preferred language<select id="profileLanguage"><?=options()?></select></label><label>Default destination<input id="profileDestination"></label><label>Accessibility settings<textarea id="profileAccessibility"></textarea></label><label>Dietary preferences<textarea id="profileDietary"></textarea></label><label>Allergies<textarea id="profileAllergy"></textarea></label><label>Emergency contact<input id="profileEmergencyContact"></label><label>Optional emergency details<textarea id="profileEmergencyDetails"></textarea></label><label class="check-row"><input type="checkbox" id="profileLargeText"> Large text</label><label class="check-row"><input type="checkbox" id="profileVoice"> Automatic voice playback</label><button id="saveProfile" class="primary">Save profile</button></article><article class="card-panel"><h2>Destination packs and recommendations</h2><div id="destinationPacks" class="record-list"></div><div id="personalRecommendations" class="scenario-steps"></div></article></div><?php endif;?>
+<article class="card-panel mt"><h2>Privacy and controls</h2><label class="check-row"><input type="checkbox" id="historyConsent" checked> Save translation history</label><label class="check-row"><input type="checkbox" id="analyticsConsent"> Share anonymous usage data</label><?php if($user&&$role==='tourist'):?><button id="deleteJourneyData" class="danger">Delete all my saved journey data</button><?php endif;?></article></section>
 
-<section class="page" id="assistance">
-<div class="page-heading"><div><span class="eyebrow">Smart tourism assistance</span><h1>Help for common travel situations</h1></div></div>
-<div class="grid-two">
-<article class="card-panel"><h2>Guided scenario</h2><select id="scenarioSelect"><option value="restaurant">Restaurant</option><option value="transport">Public transport</option><option value="hotel">Hotel</option><option value="shopping">Shopping</option></select><div id="scenarioSteps" class="scenario-steps"></div></article>
-<article class="card-panel danger-card"><h2>Emergency card</h2><p>I need help / Saya perlukan bantuan</p><button id="fullscreenEmergency" class="danger">Open large emergency card</button></article>
-</div>
-</section>
+<?php if($approved):?><section class="page" id="business"><div class="page-heading"><div><span class="eyebrow">Tourism business communication</span><h1>Business portal</h1></div><div><a id="publicBusinessLink" class="small-button" target="_blank">Open tourist page</a><div id="businessQr" class="qr-box"></div></div></div><div class="grid-two"><article class="card-panel"><h2>Public service profile</h2><label>Name<input id="businessName"></label><label>Category<input id="businessCategory"></label><label>Address<textarea id="businessAddress"></textarea></label><label>Description<textarea id="businessDescription"></textarea></label><label>Services<textarea id="businessServices"></textarea></label><label>Payment methods<input id="businessPayments"></label><label>Menu explanations<textarea id="businessMenu"></textarea></label><label>Facility explanations<textarea id="businessFacilities"></textarea></label><label class="check-row"><input type="checkbox" id="businessPublic"> Public QR page</label><button id="saveBusiness" class="primary">Save profile</button></article><article class="card-panel"><h2>Approved phrase / quick reply</h2><label>Question or phrase<input id="phraseSource"></label><label>Translation<input id="phraseTranslated"></label><label>Suggested reply<input id="phraseReply"></label><label>Target language<select id="phraseTarget"><?=options()?></select></label><label>Category<input id="phraseCategory" value="General"></label><button id="addBusinessPhrase" class="primary">Add phrase</button><h2>FAQ</h2><label>Question<input id="faqQuestion"></label><label>Answer<textarea id="faqAnswer"></textarea></label><button id="addFaq" class="secondary">Add FAQ</button><h2>Malaysian terminology</h2><label>Term<input id="businessTerm"></label><label>Explanation<input id="businessTermExplanation"></label><button id="addBusinessTerm" class="secondary">Save term</button></article></div><div class="grid-two mt"><article class="card-panel"><h2>Managed content</h2><div id="businessContent"></div></article><article class="card-panel"><h2>Communication report</h2><div id="businessReports"></div></article></div></section><?php endif;?>
 
-<section class="page" id="journey">
-<div class="page-heading"><div><span class="eyebrow">Personalised tourist and journey</span><h1>My journey</h1><p><?= $user?'Your account can save server-side records.':'You are using guest access. Saved phrases stay only in this browser.' ?></p></div></div>
-<?php if (!$user || ($role === 'tourist' && ($user['status']??'') === 'active')): ?>
-<div class="card-panel"><h2>Privacy choices</h2><label class="check-row"><input type="checkbox" id="historyConsent" checked> Save translation history</label><label class="check-row"><input type="checkbox" id="analyticsConsent"> Share anonymous usage data</label></div>
-<?php else: ?>
-<div class="card-panel"><h2>Journey records</h2><p class="muted">Personal translation records are scoped to tourist and business accounts. Anonymous analytics never includes conversation text.</p></div>
-<?php endif; ?>
-</section>
-
-<?php if ($businessApproved): ?>
-<section class="page" id="business">
-<div class="page-heading"><div><span class="eyebrow">Tourism business communication</span><h1>Business portal</h1><p>Profile and multilingual phrases are now stored in their dedicated MySQL tables.</p></div></div>
-<div class="grid-two">
-<article class="card-panel"><h2>Business profile</h2><label>Name<input id="businessName"></label><label>Category<input id="businessCategory"></label><label>Address<textarea id="businessAddress" rows="3"></textarea></label><button id="saveBusiness" class="primary">Save profile</button></article>
-<article class="card-panel"><h2>Add multilingual phrase</h2><label>English phrase<input id="phraseSource"></label><label>Translation<input id="phraseTranslated"></label><label>Target language<select id="phraseTarget"><option value="ms">Malay</option><option value="zh">Mandarin</option><option value="ta">Tamil</option></select></label><label>Category<input id="phraseCategory" value="General"></label><button id="addBusinessPhrase" class="primary">Add phrase</button></article>
-</div>
-<article class="card-panel mt"><h2>Published phrases</h2><div id="businessPhrases"></div></article>
-</section>
-<?php endif; ?>
-
-<?php if (in_array($role,['editor','admin'],true) && ($user['status']??'')==='active'): ?>
-<section class="page" id="insights">
-<div class="page-heading"><div><span class="eyebrow">Communication intelligence</span><h1>Service insights</h1></div></div>
-<div class="stat-grid"><article><strong id="insightTranslations">—</strong><small>Translation records</small></article><article><strong id="insightPhrases">—</strong><small>Saved and business phrases</small></article><article><strong id="insightBusinesses">—</strong><small>Business accounts</small></article><article><strong id="insightPending">—</strong><small>Pending businesses</small></article></div>
-</section>
-<?php endif; ?>
-
-<?php if ($role==='admin' && ($user['status']??'')==='active'): ?>
-<section class="page" id="admin">
-<div class="page-heading"><div><span class="eyebrow">Administration</span><h1>Platform operations</h1></div></div>
-<div class="stat-grid"><article><strong id="adminUsers">—</strong><small>Active users</small></article><article><strong id="adminBusinesses">—</strong><small>Approved businesses</small></article><article><strong id="adminPending">—</strong><small>Pending businesses</small></article><article><strong id="adminTranslations">—</strong><small>Translations</small></article></div>
-<article class="card-panel mt"><h2>Pending business registrations</h2><div id="pendingBusinesses" class="record-list"></div></article>
-</section>
-<?php endif; ?>
-
-<footer>© <?= htmlspecialchars((string)$year) ?> JomCommunicate · Malaysia Language Real-time Communication System</footer>
-</div>
-</main>
-</div>
-
-<div id="toast" class="toast-message" role="status"></div>
-<div id="emergencyOverlay" class="emergency-overlay" aria-hidden="true"><button id="closeEmergency">×</button><strong>I NEED HELP</strong><strong>SAYA PERLUKAN BANTUAN</strong><span>Call 999</span></div>
-
-<script>
-window.JOM = {
-  csrf: <?= json_encode(csrf_token()) ?>,
-  authenticated: <?= $user?'true':'false' ?>,
-  role: <?= json_encode($role) ?>
-};
-</script>
-<script src="assets/js/app.js?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/js/app.js') ?: '1')) ?>"></script>
-</body></html>
+<?php if($staff):?><section class="page" id="insights"><div class="page-heading"><div><span class="eyebrow">Communication intelligence</span><h1>Anonymous service insights</h1></div><div class="filter-row"><input type="date" id="insightFrom"><input type="date" id="insightTo"><button id="filterInsights">Filter</button><a id="exportInsights" class="small-button">Export CSV</a></div></div><div class="stat-grid"><article><strong id="insightTranslations">—</strong><small>Translations</small></article><article><strong id="insightReports">—</strong><small>Unclear / low confidence</small></article><article><strong id="insightBusinesses">—</strong><small>Businesses</small></article><article><strong id="insightPending">—</strong><small>Pending</small></article></div><div class="grid-two mt"><article class="card-panel"><h2>Language, scenario, location, type, term and peak-period data</h2><div id="insightEvents"></div></article><article class="card-panel"><h2>Issues and repeated enquiries</h2><div id="insightIssues"></div><h3>Improvement recommendations</h3><div id="insightRecommendations"></div></article></div></section><?php endif;?>
+<?php if($role==='admin'&&$staff):?><section class="page" id="admin"><div class="page-heading"><div><span class="eyebrow">Administration</span><h1>Platform operations</h1></div></div><div class="stat-grid"><article><strong id="adminUsers">—</strong><small>Active users</small></article><article><strong id="adminBusinesses">—</strong><small>Approved businesses</small></article><article><strong id="adminPending">—</strong><small>Pending</small></article><article><strong id="adminTranslations">—</strong><small>Translations</small></article></div><article class="card-panel mt"><h2>Pending business registrations</h2><div id="pendingBusinesses"></div></article></section><?php endif;?>
+<footer>© <?=date('Y')?> JomCommunicate · Malaysia Language Real-time Communication System</footer></div></main></div>
+<div id="toast" class="toast-message" role="status"></div><div id="messageOverlay" class="emergency-overlay" aria-hidden="true"><button id="closeOverlay">×</button><strong id="overlaySource"></strong><strong id="overlayTranslation"></strong><span id="overlayExtra"></span></div>
+<script>window.JOM={csrf:<?=json_encode(csrf_token())?>,authenticated:<?=$user?'true':'false'?>,role:<?=json_encode($role)?>};</script><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07cA1tTqY7fe7jPVk5IKr5q3eZjM/7dDTPk4IuXWjN8WkTwl6TFrQynm7c8G0w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><script src="assets/js/app.js?v=<?=rawurlencode((string)(filemtime(__DIR__.'/assets/js/app.js')?:'1'))?>"></script></body></html>

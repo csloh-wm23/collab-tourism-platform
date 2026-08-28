@@ -1,124 +1,89 @@
 # JomCommunicate
 
-JomCommunicate (Malaysia Language Real-time Communication System) is a student tourism communication system built with PHP 8, MySQL/MariaDB, HTML5, CSS3 and vanilla JavaScript. It is designed to run locally with XAMPP on Windows.
+JomCommunicate is an XAMPP-compatible Malaysia tourism communication system built with HTML, CSS, vanilla JavaScript, PHP and MySQL. It follows the project proposal's five modules and supports exactly:
+
+- Bahasa Malaysia
+- English
+- Mandarin Chinese
+- Indonesian
+- Thai
 
 ## XAMPP setup
 
-1. Copy the project folder to `C:\xampp\htdocs\jomcommunicate`.
-2. Start Apache and MySQL from the XAMPP Control Panel.
-3. Open phpMyAdmin at `http://localhost/phpmyadmin`.
-4. Import [`database/jomcommunicate.sql`](database/jomcommunicate.sql). It creates and selects the `jomcommunicate` database.
-5. Copy `.env.example` to a new local file named `.env`.
-6. Open `http://localhost/jomcommunicate/`.
+1. Put this project in `C:\xampp\htdocs\jomcommunicate`.
+2. Start Apache and MySQL in XAMPP.
+3. For a new database, import `database/jomcommunicate.sql` in phpMyAdmin.
+4. Copy `.env.example` to `.env` and add the Google Cloud API key.
+5. Open `http://localhost/jomcommunicate/`.
 
-The `.env` file is ignored by Git and must never be committed.
+If you already imported an older version of the database, import `database/migrations/20260828_document_features.sql` once instead of deleting your data.
 
-## Environment configuration
+## Google Cloud configuration
 
-Use these settings in `.env`, changing only values needed by your local setup:
+Enable Cloud Translation API and Cloud Text-to-Speech API for the project. The API key remains in server-side `.env` and is never committed or sent to browser JavaScript.
 
-```env
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=jomcommunicate
-DB_USER=root
-DB_PASS=
-
-GOOGLE_TRANSLATE_API_KEY=
-```
-
-The default XAMPP MySQL account normally has user `root` and a blank password. Use your actual local credentials if they differ.
-
-## Create an administrator
-
-Open PowerShell in the project folder and run:
-
-```powershell
-C:\xampp\php\php.exe scripts\create_admin.php "System Admin" admin@jom.local "ChangeMe123!"
-```
-
-Use a unique email and replace the example password. The script hashes the password and creates or promotes the account as an active administrator.
-
-## Google Cloud setup
-
-1. In Google Cloud, enable both the Cloud Translation API and Cloud Text-to-Speech API.
-2. Create an API key and add it to `GOOGLE_TRANSLATE_API_KEY` in your local `.env`. If the key has API restrictions, allow both APIs.
-3. Ensure the PHP cURL extension is enabled in XAMPP.
-4. Restart Apache after changing PHP or environment configuration.
-
-Speech requests go from the browser to `api/speech.php`. PHP creates the server-side Google REST request, so the Google key is never placed in HTML or JavaScript. The endpoint accepts at most 500 characters, supports only the listed languages, and applies a basic per-session request limit.
-
-Translation requests similarly go through `api/translate.php`. The endpoint validates the language pair and text length, keeps the Google API key server-side, and rate-limits each session.
-
-Configured Google voices:
+Text-to-Speech voices:
 
 - English: `en-US-Standard-C`
-- Malay: `ms-MY-Standard-A`
-- Mandarin: `cmn-CN-Standard-A`
-- Tamil: `ta-IN-Standard-A`
+- Bahasa Malaysia: `ms-MY-Standard-A`
+- Mandarin Chinese: `cmn-CN-Standard-A`
+- Indonesian: `id-ID-Standard-A`
+- Thai: `th-TH-Standard-A`
 
-## Account roles and approval flow
+## Implemented proposal modules
 
-- Guest: communication tools and browser-only saved phrases/history.
-- Tourist: active immediately; private server-side history and persisted privacy choices.
-- Business: starts pending and may use public communication tools, but cannot see or call Business Portal functions until approved.
-- Editor: read-only service insights.
-- Administrator: business approval/rejection and administration; no normal Business Portal.
+### Real-Time Tourism Communication
 
-Business approval flow:
+Text and voice translation, automatic language detection, two-way mode, scenario selection, confidence display, low-confidence confirmation, alternative/context suggestions, Malaysian terminology, unclear-translation reporting and a large-screen message display.
 
-1. A business registers; `users.status` and `businesses.verification_status` are `pending`.
-2. The business may log in and sees a pending-approval notice.
-3. An administrator reviews it under Administration.
-4. Approve sets the business to `approved` and its user to `active`.
-5. Reject sets the registration to `rejected` without treating it as a malicious suspension.
-6. Approved owners can edit only their own profile and phrases. Suspended accounts fail protected requests immediately because each request reloads current status from MySQL.
+### Smart Tourism Assistance
 
-Approval and rejection decisions are written to `audit_logs`.
+Restaurant, hotel, transportation, shopping, medical and emergency workflows; suggested questions, quick replies, dietary/allergy/religious/spice communication, bilingual emergency card, cultural tips and destination/offline-ready phrase packs.
 
-## Supported languages
+### Tourism Business Communication
 
-The current software supports:
+Registration and administrator approval, public business profile and QR link, account-free tourist page, service/payment/menu/facility information, approved phrase templates, two-way quick replies, FAQs, business-managed terms and interaction reports.
 
-- English (`en-US` speech recognition)
-- Bahasa Melayu (`ms-MY` speech recognition)
-- Mandarin (`zh-CN`)
-- Tamil (`ta-MY`)
+### Personalised Tourist and Journey
 
-## Translation behavior
+Guest and registered access, preferred language, accessibility, dietary, allergy and optional emergency preferences, favourites, history, destination packs, recommendations, consent controls and complete saved-journey deletion.
 
-Curated tourism phrases are translated first by the built-in dictionary, so they remain fast and available without an external request. Other text is sent to Google Cloud Translation. English, Malay, Simplified Chinese, and Tamil are accepted as source and target languages. Google Cloud Text-to-Speech reads every result using the configured language-specific voice. Changing the source text, source language, target language or Swap selection makes the previous result stale until Translate is pressed again.
+### Communication Intelligence
 
-## Privacy and security notes
+Anonymous consented analysis for languages, scenarios, unclear and low-confidence input, terms, locations, business types, peak periods and repeated enquiries. Editor/admin reports include filters, CSV export and improvement recommendations.
 
-- Passwords use `password_hash()` and `password_verify()` and require at least eight characters.
-- Successful login regenerates the session ID; session cookies are HttpOnly and SameSite=Lax.
-- State-changing forms and APIs use CSRF tokens.
-- Protected APIs reload role/status from MySQL instead of trusting stale session authorization.
-- PDO prepared statements and ownership conditions scope history and business writes.
-- Tourist translation-history and anonymous-analytics choices persist in `consent_records`.
-- Anonymous analytics consent does not collect conversation content.
-- Guest preferences and records remain in localStorage.
-- `.env` and `.env.*` are ignored while `.env.example` remains tracked.
+## Accounts and security
 
-## Quick manual test
+- Tourist accounts become active immediately.
+- Business accounts require administrator approval.
+- Editors and administrators can view anonymous intelligence; administrators manage business approvals.
+- Passwords use PHP password hashing, writes use CSRF protection, database operations use prepared statements, and protected requests reload current account status.
+- Five failed password attempts lock the account for 15 minutes. A successful login resets the counter.
+- CAPTCHA and registration-spam protection are intentionally outside this demo's requested scope.
 
-Use separate browser/private windows for different accounts:
+Create the first administrator from a terminal:
 
-1. As a guest, translate `Thank you` from English to Malay, play it with the Malay Google voice after setup, save the phrase, and refresh to verify localStorage.
-2. Register a tourist, log in, translate, refresh, and verify private history persists. Disable Save Translation History, translate again, and verify no translation record is added.
-3. Register a business and log in. Confirm the pending notice appears, the Business Portal navigation is absent, and `api/business.php` returns HTTP 403.
-4. Log in as admin, approve the pending business, and verify it leaves the pending list.
-5. Log back in as that business. Edit its profile, add a phrase, refresh, and verify both persist.
-6. Reject another pending business or suspend a test user in MySQL while it is logged in; its next protected request must fail.
-7. Log in as an editor and verify all four Insights totals load.
-8. With two user accounts, confirm one cannot read or delete the other's record IDs and one business cannot select or edit another business profile.
-
-Run syntax checks before submission:
-
-```powershell
-Get-ChildItem -Recurse -Filter *.php | ForEach-Object { C:\xampp\php\php.exe -l $_.FullName }
-node --check assets\js\app.js
+```bash
+php scripts/create_admin.php "Admin Name" "admin@example.com"
 ```
 
-Node is used only as an optional JavaScript syntax checker; it is not an application dependency.
+## Automated tests
+
+GitHub Actions runs PHP lint, JavaScript syntax checks, a clean MySQL import, application requirement checks and database/schema checks on every push and pull request.
+
+Run locally:
+
+```bash
+php tests/run.php
+node --check assets/js/app.js
+```
+
+With the database imported and MySQL running:
+
+```bash
+php tests/database.php
+```
+
+## Privacy
+
+Conversation history is saved only when enabled. Anonymous analytics requires explicit consent and stores no user ID or conversation content. Users can delete their saved journey records, packs and consent history.
