@@ -64,7 +64,7 @@ Anonymous, server-verified consent analysis for languages, scenarios, unclear an
 Create the first administrator from a terminal:
 
 ```bash
-php scripts/create_admin.php "Admin Name" "admin@example.com"
+php scripts/create_admin.php "Admin Name" "admin@example.com" "StrongPassword"
 ```
 
 ## Automated tests
