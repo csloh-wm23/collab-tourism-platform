@@ -1,29 +1,42 @@
 USE jomcommunicate;
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER preferred_language;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until DATETIME NULL AFTER failed_login_attempts;
-ALTER TABLE tourist_profiles ADD COLUMN IF NOT EXISTS allergy_notes VARCHAR(500) NULL AFTER dietary_notes;
-ALTER TABLE tourist_profiles ADD COLUMN IF NOT EXISTS emergency_details VARCHAR(500) NULL AFTER emergency_contact;
-ALTER TABLE tourist_profiles ADD COLUMN IF NOT EXISTS default_destination VARCHAR(120) NULL AFTER emergency_details;
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS service_details TEXT NULL AFTER description;
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_methods VARCHAR(500) NULL AFTER service_details;
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS menu_details TEXT NULL AFTER payment_methods;
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS facility_details TEXT NULL AFTER menu_details;
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS is_public TINYINT(1) NOT NULL DEFAULT 1 AFTER qr_slug;
-ALTER TABLE business_phrases ADD COLUMN IF NOT EXISTS suggested_reply VARCHAR(500) NULL AFTER translated_text;
-ALTER TABLE records ADD COLUMN IF NOT EXISTS source_language VARCHAR(12) NULL AFTER content;
-ALTER TABLE records ADD COLUMN IF NOT EXISTS target_language VARCHAR(12) NULL AFTER source_language;
-ALTER TABLE records ADD COLUMN IF NOT EXISTS scenario VARCHAR(40) NULL AFTER target_language;
-ALTER TABLE records ADD COLUMN IF NOT EXISTS confidence DECIMAL(4,3) NULL AFTER scenario;
-ALTER TABLE records ADD COLUMN IF NOT EXISTS is_favorite TINYINT(1) NOT NULL DEFAULT 0 AFTER confidence;
-ALTER TABLE translation_reports ADD COLUMN IF NOT EXISTS source_language VARCHAR(12) NULL AFTER translated_text;
-ALTER TABLE translation_reports ADD COLUMN IF NOT EXISTS target_language VARCHAR(12) NULL AFTER source_language;
-ALTER TABLE translation_reports ADD COLUMN IF NOT EXISTS scenario VARCHAR(40) NULL AFTER target_language;
-ALTER TABLE translation_reports ADD COLUMN IF NOT EXISTS confidence DECIMAL(4,3) NULL AFTER scenario;
+DROP PROCEDURE IF EXISTS add_column_if_missing;
+DELIMITER //
+CREATE PROCEDURE add_column_if_missing(IN p_table VARCHAR(64),IN p_column VARCHAR(64),IN p_definition TEXT)
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=p_table AND COLUMN_NAME=p_column) THEN
+    SET @migration_sql=CONCAT('ALTER TABLE `',REPLACE(p_table,'`','``'),'` ADD COLUMN `',REPLACE(p_column,'`','``'),'` ',p_definition);
+    PREPARE migration_statement FROM @migration_sql;
+    EXECUTE migration_statement;
+    DEALLOCATE PREPARE migration_statement;
+  END IF;
+END//
+DELIMITER ;
+
+CALL add_column_if_missing('users','failed_login_attempts','TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER preferred_language');
+CALL add_column_if_missing('users','locked_until','DATETIME NULL AFTER failed_login_attempts');
+CALL add_column_if_missing('tourist_profiles','allergy_notes','VARCHAR(500) NULL AFTER dietary_notes');
+CALL add_column_if_missing('tourist_profiles','emergency_details','VARCHAR(500) NULL AFTER emergency_contact');
+CALL add_column_if_missing('tourist_profiles','default_destination','VARCHAR(120) NULL AFTER emergency_details');
+CALL add_column_if_missing('businesses','service_details','TEXT NULL AFTER description');
+CALL add_column_if_missing('businesses','payment_methods','VARCHAR(500) NULL AFTER service_details');
+CALL add_column_if_missing('businesses','menu_details','TEXT NULL AFTER payment_methods');
+CALL add_column_if_missing('businesses','facility_details','TEXT NULL AFTER menu_details');
+CALL add_column_if_missing('businesses','is_public','TINYINT(1) NOT NULL DEFAULT 1 AFTER qr_slug');
+CALL add_column_if_missing('business_phrases','suggested_reply','VARCHAR(500) NULL AFTER translated_text');
+CALL add_column_if_missing('records','source_language','VARCHAR(12) NULL AFTER content');
+CALL add_column_if_missing('records','target_language','VARCHAR(12) NULL AFTER source_language');
+CALL add_column_if_missing('records','scenario','VARCHAR(40) NULL AFTER target_language');
+CALL add_column_if_missing('records','confidence','DECIMAL(4,3) NULL AFTER scenario');
+CALL add_column_if_missing('records','is_favorite','TINYINT(1) NOT NULL DEFAULT 0 AFTER confidence');
+CALL add_column_if_missing('translation_reports','source_language','VARCHAR(12) NULL AFTER translated_text');
+CALL add_column_if_missing('translation_reports','target_language','VARCHAR(12) NULL AFTER source_language');
+CALL add_column_if_missing('translation_reports','scenario','VARCHAR(40) NULL AFTER target_language');
+CALL add_column_if_missing('translation_reports','confidence','DECIMAL(4,3) NULL AFTER scenario');
 ALTER TABLE translation_reports MODIFY source_text VARCHAR(1000) NULL;
 ALTER TABLE translation_reports MODIFY translated_text VARCHAR(1000) NULL;
-ALTER TABLE translation_reports ADD COLUMN IF NOT EXISTS source_hash CHAR(64) NULL AFTER translated_text;
-ALTER TABLE translation_reports ADD COLUMN IF NOT EXISTS term_label VARCHAR(120) NULL AFTER issue_type;
+CALL add_column_if_missing('translation_reports','source_hash','CHAR(64) NULL AFTER translated_text');
+CALL add_column_if_missing('translation_reports','term_label','VARCHAR(120) NULL AFTER issue_type');
 
 CREATE TABLE IF NOT EXISTS business_profile_translations (
   business_id INT UNSIGNED NOT NULL, language_code VARCHAR(12) NOT NULL,
@@ -48,9 +61,9 @@ CREATE TABLE IF NOT EXISTS business_terms (
   UNIQUE KEY uq_business_term (business_id, term),
   CONSTRAINT fk_term_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
-ALTER TABLE business_terms ADD COLUMN IF NOT EXISTS is_published TINYINT(1) NOT NULL DEFAULT 1 AFTER explanation;
-ALTER TABLE business_faqs ADD COLUMN IF NOT EXISTS language_code VARCHAR(12) NOT NULL DEFAULT 'en' AFTER answer;
-ALTER TABLE business_terms ADD COLUMN IF NOT EXISTS language_code VARCHAR(12) NOT NULL DEFAULT 'en' AFTER explanation;
+CALL add_column_if_missing('business_terms','is_published','TINYINT(1) NOT NULL DEFAULT 1 AFTER explanation');
+CALL add_column_if_missing('business_faqs','language_code',"VARCHAR(12) NOT NULL DEFAULT 'en' AFTER answer");
+CALL add_column_if_missing('business_terms','language_code',"VARCHAR(12) NOT NULL DEFAULT 'en' AFTER explanation");
 CREATE TABLE IF NOT EXISTS malaysian_terms (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, term VARCHAR(120) NOT NULL UNIQUE,
   explanation VARCHAR(500) NOT NULL, category VARCHAR(80) NOT NULL DEFAULT 'General'
@@ -119,3 +132,5 @@ CREATE TABLE IF NOT EXISTS business_interactions (
   INDEX idx_business_interaction(business_id,created_at),
   CONSTRAINT fk_interaction_business FOREIGN KEY(business_id) REFERENCES businesses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+DROP PROCEDURE IF EXISTS add_column_if_missing;
