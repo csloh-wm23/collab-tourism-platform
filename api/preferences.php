@@ -14,14 +14,28 @@ function preferences_reply(array $body, int $status = 200): never
 }
 
 $user = current_user();
-if (!$user || ($user['role'] ?? '') !== 'tourist' || ($user['status'] ?? '') !== 'active') {
-    preferences_reply(['ok'=>false,'message'=>'Active tourist account required.'],403);
-}
+$registeredTourist = $user && ($user['role'] ?? '') === 'tourist' && ($user['status'] ?? '') === 'active';
 
 try {
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+    if (!$registeredTourist) {
+        if ($method === 'GET') {
+            preferences_reply(['ok'=>true,'preferences'=>$_SESSION['guest_preferences'] ?? ['save_history'=>true,'analytics'=>false]]);
+        }
+        if ($method !== 'POST') {
+            header('Allow: GET, POST');
+            preferences_reply(['ok'=>false,'message'=>'Method not allowed.'],405);
+        }
+        $input = json_decode((string)file_get_contents('php://input'), true);
+        if (!is_array($input) || !verify_csrf($input['csrf'] ?? null)) preferences_reply(['ok'=>false,'message'=>'Invalid request token.'],403);
+        if (!isset($input['save_history'],$input['analytics']) || !is_bool($input['save_history']) || !is_bool($input['analytics'])) preferences_reply(['ok'=>false,'message'=>'Both privacy choices must be true or false.'],422);
+        $_SESSION['guest_preferences']=['save_history'=>$input['save_history'],'analytics'=>$input['analytics']];
+        preferences_reply(['ok'=>true,'message'=>'Guest privacy choices saved for this session.']);
+    }
+
     $db = database();
     $userId = (int)$user['id'];
-    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
     if ($method === 'GET') {
         $stmt = $db->prepare(

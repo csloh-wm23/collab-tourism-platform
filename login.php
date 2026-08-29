@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/auth.php';
+require_once __DIR__ . '/config/security.php';
 
 if (is_logged_in()) {
     header('Location: index.php');
@@ -29,12 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "Too many failed attempts. Try again in {$minutes} minute(s).";
             } elseif (!$user || !password_verify($password, (string)$user['password_hash'])) {
                 if ($user) {
-                    $attempts = (int)$user['failed_login_attempts'] + 1;
-                    if ($attempts >= 5) {
+                    $state = failed_login_state((int)$user['failed_login_attempts']);
+                    if ($state['locked']) {
                         $db->prepare('UPDATE users SET failed_login_attempts=0, locked_until=DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id=?')->execute([(int)$user['id']]);
                         $error = 'Too many failed attempts. Try again in 15 minutes.';
                     } else {
-                        $db->prepare('UPDATE users SET failed_login_attempts=? WHERE id=?')->execute([$attempts,(int)$user['id']]);
+                        $db->prepare('UPDATE users SET failed_login_attempts=? WHERE id=?')->execute([$state['attempts'],(int)$user['id']]);
                         $error = 'Incorrect email or password.';
                     }
                 } else {

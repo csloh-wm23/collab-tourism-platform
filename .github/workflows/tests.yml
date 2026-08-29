@@ -26,11 +26,15 @@ jobs:
       - name: PHP syntax
         run: find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
       - name: JavaScript syntax
-        run: node --check assets/js/app.js
+        run: node --check assets/js/core.js && node --check assets/js/app.js
       - name: Import clean schema
         run: mysql -h 127.0.0.1 -u root < database/jomcommunicate.sql
+      - name: Migration compatibility
+        run: mysql -h 127.0.0.1 -u root < database/migrations/20260828_document_features.sql
       - name: Application checks
         run: php tests/run.php
+      - name: Frontend behaviour checks
+        run: node tests/frontend.js
       - name: Database checks
         run: php tests/database.php
       - name: Guest HTTP smoke tests

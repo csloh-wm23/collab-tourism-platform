@@ -15,7 +15,7 @@ try {
     $text=clean_text($input['text']??'',500,true); $from=clean_language($input['from']??'',true);
     $to=clean_language($input['to']??''); $scenario=clean_scenario($input['scenario']??'culture');
 } catch(InvalidArgumentException $e){ translation_reply(['ok'=>false,'message'=>$e->getMessage()],422); }
-if($from!=='auto'&&$from===$to) translation_reply(['ok'=>true,'translation'=>$text,'detected_language'=>$from,'confidence'=>1,'alternatives'=>[],'scenario'=>$scenario]);
+if($from!=='auto'&&$from===$to) translation_reply(['ok'=>true,'translation'=>$text,'detected_language'=>$from,'confidence'=>1,'confidence_source'=>'exact_same_language','alternatives'=>[],'suggestions'=>[],'matched_terms'=>[],'scenario'=>$scenario]);
 $codes=['en'=>'en','ms'=>'ms','zh'=>'zh-CN','id'=>'id','th'=>'th'];
 $key=trim((string)(getenv('GOOGLE_TRANSLATE_API_KEY')?:''));
 if($key==='') translation_reply(['ok'=>false,'message'=>'Google Cloud Translation is not configured on the server.'],503);
@@ -29,6 +29,17 @@ if($status<200||$status>=300){error_log('Google Cloud Translation HTTP '.$status
 $item=(json_decode((string)$response,true)['data']['translations'][0]??[]);$translation=$item['translatedText']??null;
 if(!is_string($translation)||$translation==='')translation_reply(['ok'=>false,'message'=>'Translation is temporarily unavailable.'],502);
 $reverse=array_flip($codes);$detected=$from==='auto'?($reverse[(string)($item['detectedSourceLanguage']??'')]??(string)($item['detectedSourceLanguage']??'unknown')):$from;
-$alternatives=[];
-try{$db=database();$stmt=$db->prepare('SELECT explanation FROM malaysian_terms WHERE LOWER(term)=LOWER(?) LIMIT 1');$stmt->execute([$text]);if($explanation=$stmt->fetchColumn())$alternatives[]=(string)$explanation;$phrase=$db->prepare('SELECT translated_text FROM phrase_packs WHERE scenario=? AND LOWER(source_text)=LOWER(?) ORDER BY id LIMIT 2');$phrase->execute([$scenario,$text]);foreach($phrase->fetchAll(PDO::FETCH_COLUMN) as $candidate)if($candidate!==$translation&&!in_array($candidate,$alternatives,true))$alternatives[]=$candidate;}catch(Throwable $e){error_log('Translation context lookup: '.$e->getMessage());}
-translation_reply(['ok'=>true,'translation'=>html_entity_decode($translation,ENT_QUOTES|ENT_HTML5,'UTF-8'),'detected_language'=>$detected,'confidence'=>0.92,'alternatives'=>$alternatives,'scenario'=>$scenario]);
+$alternatives=[];$suggestions=[];$matchedTerms=[];
+try{
+ $db=database();
+ $terms=$db->query('SELECT term,explanation FROM malaysian_terms ORDER BY term')->fetchAll();
+ foreach($terms as $term){if(mb_stripos($text,(string)$term['term'])!==false){$matchedTerms[]=(string)$term['term'];$alternatives[]=(string)$term['term'].': '.(string)$term['explanation'];}}
+ $phrase=$db->prepare('SELECT translated_text FROM phrase_packs WHERE scenario=? AND language_code=? AND LOWER(source_text)=LOWER(?) ORDER BY id LIMIT 3');
+ $phrase->execute([$scenario,$to,$text]);
+ foreach($phrase->fetchAll(PDO::FETCH_COLUMN) as $candidate)if($candidate!==$translation&&!in_array($candidate,$alternatives,true))$alternatives[]=(string)$candidate;
+ $context=$db->prepare('SELECT source_text,translated_text,suggested_reply FROM phrase_packs WHERE scenario=? AND language_code=? ORDER BY id LIMIT 4');
+ $context->execute([$scenario,$to]);$suggestions=$context->fetchAll();
+}catch(Throwable $e){error_log('Translation context lookup: '.$e->getMessage());}
+// Cloud Translation Basic v2 does not return a translation-confidence score.
+// A null value is deliberately returned instead of displaying a fabricated percentage.
+translation_reply(['ok'=>true,'translation'=>html_entity_decode($translation,ENT_QUOTES|ENT_HTML5,'UTF-8'),'detected_language'=>$detected,'confidence'=>null,'confidence_source'=>'not_provided_by_google','alternatives'=>$alternatives,'suggestions'=>$suggestions,'matched_terms'=>$matchedTerms,'scenario'=>$scenario]);

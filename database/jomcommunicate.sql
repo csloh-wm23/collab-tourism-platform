@@ -60,11 +60,25 @@ CREATE TABLE IF NOT EXISTS business_phrases (
   CONSTRAINT fk_phrase_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS business_profile_translations (
+  business_id INT UNSIGNED NOT NULL,
+  language_code VARCHAR(12) NOT NULL,
+  description TEXT NULL,
+  service_details TEXT NULL,
+  payment_methods VARCHAR(500) NULL,
+  menu_details TEXT NULL,
+  facility_details TEXT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (business_id, language_code),
+  CONSTRAINT fk_profile_translation_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS business_faqs (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   business_id INT UNSIGNED NOT NULL,
   question VARCHAR(500) NOT NULL,
   answer VARCHAR(1000) NOT NULL,
+  language_code VARCHAR(12) NOT NULL DEFAULT 'en',
   is_published TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_faq_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
@@ -75,6 +89,8 @@ CREATE TABLE IF NOT EXISTS business_terms (
   business_id INT UNSIGNED NOT NULL,
   term VARCHAR(120) NOT NULL,
   explanation VARCHAR(500) NOT NULL,
+  language_code VARCHAR(12) NOT NULL DEFAULT 'en',
+  is_published TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_business_term (business_id, term),
   CONSTRAINT fk_term_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
@@ -116,12 +132,35 @@ INSERT INTO phrase_packs (destination,scenario,language_code,source_text,transla
 ('Malaysia','medical','ms','I need a doctor and I am allergic to this medicine.','Saya perlukan doktor dan saya alah kepada ubat ini.','Saya akan hubungi bantuan perubatan.','Call 999 for a serious emergency.'),
 ('Malaysia','emergency','ms','Please call emergency services.','Sila hubungi perkhidmatan kecemasan.','Saya akan telefon 999 sekarang.','Malaysia emergency number: 999.');
 
+INSERT INTO phrase_packs (destination,scenario,language_code,source_text,translated_text,suggested_reply,cultural_tip) VALUES
+('Malaysia','restaurant','ms','Please show me the vegetarian options.','Sila tunjukkan pilihan vegetarian.','Ini ialah pilihan vegetarian kami.','Confirm sauces and stock separately when discussing dietary needs.'),
+('Malaysia','hotel','ms','What time is check-out?','Pukul berapa waktu daftar keluar?','Waktu daftar keluar ialah pukul dua belas tengah hari.','Keep your room key and identification available.'),
+('Malaysia','hotel','ms','Is breakfast included with my room?','Adakah sarapan termasuk dengan bilik saya?','Ya, sarapan disediakan di tingkat bawah.','Ask the front desk about meal times and locations.'),
+('Malaysia','transport','ms','Which platform should I use?','Saya perlu menggunakan platform yang mana?','Sila gunakan platform dua.','Check the service name as well as the platform number.'),
+('Malaysia','transport','ms','Please tell me when we reach this stop.','Sila beritahu saya apabila kita sampai di hentian ini.','Baik, saya akan beritahu anda.','Show the written destination if pronunciation is difficult.'),
+('Malaysia','shopping','ms','How much does this cost?','Berapakah harga barang ini?','Harganya dua puluh ringgit.','Prices are normally displayed in Malaysian ringgit.'),
+('Malaysia','shopping','ms','Can I exchange this item?','Bolehkah saya menukar barang ini?','Boleh, sila tunjukkan resit anda.','Keep the receipt and ask about the exchange policy.'),
+('Malaysia','medical','ms','Where is the nearest clinic?','Di manakah klinik yang terdekat?','Klinik itu terletak di jalan sebelah.','Bring identification and a list of current medicines.'),
+('Malaysia','medical','ms','These are my symptoms and current medicines.','Ini ialah gejala dan ubat yang sedang saya ambil.','Sila terangkan bila gejala itu bermula.','Use the emergency assistant for severe or urgent symptoms.'),
+('Malaysia','emergency','ms','I am at this location and need an ambulance.','Saya berada di lokasi ini dan memerlukan ambulans.','Bantuan sedang dalam perjalanan.','Share a landmark or written address when possible.'),
+('Malaysia','emergency','ms','Please contact this emergency person.','Sila hubungi orang kecemasan ini.','Baik, saya akan menghubungi mereka.','Keep emergency contact details in the journey profile.');
+
 CREATE TABLE IF NOT EXISTS user_destination_packs (
   user_id INT UNSIGNED NOT NULL,
   destination VARCHAR(120) NOT NULL,
   added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, destination),
   CONSTRAINT fk_pack_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_saved_packs (
+  user_id INT UNSIGNED NOT NULL,
+  destination VARCHAR(120) NOT NULL,
+  scenario VARCHAR(40) NOT NULL,
+  language_code VARCHAR(12) NOT NULL,
+  added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, destination, scenario, language_code),
+  CONSTRAINT fk_saved_pack_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS records (
@@ -156,13 +195,15 @@ CREATE TABLE IF NOT EXISTS consent_records (
 CREATE TABLE IF NOT EXISTS translation_reports (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   reporter_user_id INT UNSIGNED NULL,
-  source_text VARCHAR(1000) NOT NULL,
-  translated_text VARCHAR(1000) NOT NULL,
+  source_text VARCHAR(1000) NULL,
+  translated_text VARCHAR(1000) NULL,
+  source_hash CHAR(64) NULL,
   source_language VARCHAR(12) NULL,
   target_language VARCHAR(12) NULL,
   scenario VARCHAR(40) NULL,
   confidence DECIMAL(4,3) NULL,
   issue_type VARCHAR(80) NOT NULL,
+  term_label VARCHAR(120) NULL,
   notes VARCHAR(1000) NULL,
   status ENUM('open','reviewing','resolved') NOT NULL DEFAULT 'open',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

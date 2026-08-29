@@ -34,23 +34,23 @@ Text-to-Speech voices:
 
 ### Real-Time Tourism Communication
 
-Text and voice translation, automatic language detection, two-way mode, scenario selection, confidence display, low-confidence confirmation, alternative/context suggestions, Malaysian terminology, unclear-translation reporting and a large-screen message display.
+Text and voice translation, automatic text-language detection, two-way mode, scenario selection, curated alternative/context suggestions, Malaysian terminology, unclear-translation reporting and a large-screen message display. Browser speech recognition requires the speaker to choose the spoken language. Google Cloud Translation Basic does not provide a confidence score, so the interface says that it is unavailable instead of inventing a percentage; genuine browser voice-recognition confidence is still used for low-confidence confirmation and analysis.
 
 ### Smart Tourism Assistance
 
-Restaurant, hotel, transportation, shopping, medical and emergency workflows; suggested questions, quick replies, dietary/allergy/religious/spice communication, bilingual emergency card, cultural tips and destination/offline-ready phrase packs.
+Restaurant, hotel, transportation, shopping, medical and emergency workflows; suggested questions, quick replies, dietary/allergy/religious/spice communication, dynamically translated bilingual emergency cards, cultural tips and destination/offline-ready phrase packs. A requested destination without its own pack is clearly identified as a Malaysia fallback and is never saved under a misleading destination name.
 
 ### Tourism Business Communication
 
-Registration and administrator approval, public business profile and QR link, account-free tourist page, service/payment/menu/facility information, approved phrase templates, two-way quick replies, FAQs, business-managed terms and interaction reports.
+Registration, rejection correction/resubmission and administrator approval; multilingual public business profiles; QR link with a visible link fallback; account-free tourist pages; service/payment/menu/facility information; publishable and editable phrase templates, quick replies, FAQs and terms; custom tourist questions; and interaction/repeated-question reports.
 
 ### Personalised Tourist and Journey
 
-Guest and registered access, preferred language, accessibility, dietary, allergy and optional emergency preferences, favourites, history, destination packs, recommendations, consent controls and complete saved-journey deletion.
+Guest and registered access, preferred language, accessibility, dietary, allergy and optional emergency preferences, persistent favourites, history, destination packs, situation-based phrase recommendations, consent controls and complete profile/saved-journey/offline-pack deletion.
 
 ### Communication Intelligence
 
-Anonymous consented analysis for languages, scenarios, unclear and low-confidence input, terms, locations, business types, peak periods and repeated enquiries. Editor/admin reports include filters, CSV export and improvement recommendations.
+Anonymous, server-verified consent analysis for languages, scenarios, unclear and low-confidence voice input, terms, locations, business types, peak periods and repeated free-form enquiries. Editor/admin reports include date/language/scenario/location/business-type filters, complete multi-section CSV export and data-specific improvement recommendations. Translation issue reports retain analytical dimensions and a one-way text fingerprint, not reporter identity or conversation text.
 
 ## Accounts and security
 
@@ -69,13 +69,14 @@ php scripts/create_admin.php "Admin Name" "admin@example.com"
 
 ## Automated tests
 
-GitHub Actions runs PHP lint, JavaScript syntax checks, a clean MySQL import, application requirement checks and database/schema checks on every push and pull request.
+GitHub Actions runs PHP lint, JavaScript syntax and behaviour tests, clean-schema and migration imports, application requirement checks, database/schema/workflow checks, and guest HTTP consent/analytics smoke tests on every push and pull request. External Google Cloud responses and full visual browser rendering still require manual testing with configured credentials and XAMPP.
 
 Run locally:
 
 ```bash
 php tests/run.php
 node --check assets/js/app.js
+node tests/frontend.js
 ```
 
 With the database imported and MySQL running:
