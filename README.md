@@ -16,7 +16,7 @@ TourLingo is an XAMPP-compatible Malaysia tourism communication system built wit
 4. Copy `.env.example` to `.env` and add the Google Cloud API key.
 5. Open `http://localhost/jomcommunicate/`.
 
-If you already imported an older version of the database, import `database/migrations/20260828_document_features.sql` and then `database/migrations/20260905_travease_profile.sql` once instead of deleting your data.
+If you already imported an older version of the database, import `database/migrations/20260828_document_features.sql`, `database/migrations/20260905_travease_profile.sql`, and `database/migrations/20260905_profile_picture.sql` once instead of deleting your data.
 
 ## Google Cloud configuration
 
@@ -46,11 +46,13 @@ Registration, rejection correction/resubmission and administrator approval; mult
 
 ### Personalised Tourist and Journey
 
-Guest and registered access, dedicated profile management, preferred language, accessibility, dietary, allergy and optional emergency preferences, password changes, persistent favourites, history, destination packs, situation-based phrase recommendations, consent controls and complete profile/saved-journey/offline-pack deletion.
+Guest and registered access, dedicated profile management with validated JPG/PNG/WebP profile-picture uploads, preferred language, accessibility, dietary, allergy and optional emergency preferences, password changes, persistent favourites, history, destination packs, situation-based phrase recommendations, consent controls and complete profile/saved-journey/offline-pack deletion.
 
 ### Communication Intelligence
 
 Anonymous, server-verified consent analysis for languages, scenarios, unclear and low-confidence voice input, terms, locations, business types, peak periods and repeated free-form enquiries. Editor/admin reports include date/language/scenario/location/business-type filters, complete multi-section CSV export and data-specific improvement recommendations. Translation issue reports retain analytical dimensions and a one-way text fingerprint, not reporter identity or conversation text.
+
+Administrators also have a live operational report for user status by role, business-review status, recent audit activity and pending approvals. The full administration report exports as an Excel-friendly CSV.
 
 ## Accounts and security
 

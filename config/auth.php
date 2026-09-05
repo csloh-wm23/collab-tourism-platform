@@ -35,7 +35,7 @@ function current_user(): ?array
 
     try {
         $stmt = database()->prepare(
-            'SELECT id, full_name, email, role, status, preferred_language FROM users WHERE id = ? LIMIT 1'
+            'SELECT id, full_name, email, role, status, preferred_language, profile_image FROM users WHERE id = ? LIMIT 1'
         );
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
@@ -103,7 +103,7 @@ function require_role(string ...$roles): void
 
 function refresh_session_user(PDO $db, int $userId): void
 {
-    $stmt = $db->prepare('SELECT id, full_name, email, role, status, preferred_language FROM users WHERE id = ?');
+    $stmt = $db->prepare('SELECT id, full_name, email, role, status, preferred_language, profile_image FROM users WHERE id = ?');
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
     if ($user) {

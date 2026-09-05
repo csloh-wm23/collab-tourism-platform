@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   role ENUM('tourist','business','editor','admin') NOT NULL DEFAULT 'tourist',
   status ENUM('active','pending','suspended') NOT NULL DEFAULT 'active',
   preferred_language VARCHAR(12) NOT NULL DEFAULT 'en',
+  profile_image VARCHAR(255) NULL,
   failed_login_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
   locked_until DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

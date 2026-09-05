@@ -73,6 +73,16 @@ async function loadProfile(){
 }
 $('#saveProfile')?.addEventListener('click',async()=>{const ids=['profileName','profileLanguage','profileDestination','profileAccessibility','profileDietary','profileAllergy','profileEmergencyContact','profileEmergencyDetails'];const keys=['full_name','preferred_language','default_destination','accessibility_notes','dietary_notes','allergy_notes','emergency_contact','emergency_details'];const body={action:'save_profile',csrf:window.JOM.csrf};ids.forEach((id,i)=>body[keys[i]]=$('#'+id).value);body.large_text=$('#profileLargeText').checked;body.voice_playback=$('#profileVoice').checked;const r=await jsonFetch('api/tourist.php',{method:'POST',body:JSON.stringify(body)});toast(r.ok?'Profile saved.':await message(r,'Could not save profile.'));if(r.ok){if($('#accountFullName'))$('#accountFullName').value=body.full_name;if($('#accountLanguage'))$('#accountLanguage').value=body.preferred_language;if($('#profileNameLabel'))$('#profileNameLabel').textContent=body.full_name;if($('#profileSummaryName'))$('#profileSummaryName').textContent=body.full_name;loadProfile();}});$('#deleteJourneyData')?.addEventListener('click',async()=>{if(!confirm('Delete your profile preferences, records, offline packs and privacy choices?'))return;let ok=true,error='Could not delete data.';if(window.JOM.role==='tourist'){const r=await jsonFetch('api/tourist.php',{method:'DELETE',body:JSON.stringify({csrf:window.JOM.csrf})});ok=r.ok;if(!ok)error=await message(r,error);}if(ok){records=[];for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key===storageKey||key===privacyKey||key?.startsWith('jompack:'))localStorage.removeItem(key);}renderRecords();loadPreferences();loadProfile();}toast(ok?'Journey data deleted.':error);});
 
+function renderProfileImage(path){
+ const name=$('#accountFullName')?.value||$('#profileSummaryName')?.textContent||'TourLingo user';
+ const initial=(name.trim().charAt(0)||'T').toUpperCase();
+ ['profileAvatar','profilePhotoPreview','topbarProfileAvatar'].forEach(id=>{
+  const target=$('#'+id);if(!target)return;
+  target.replaceChildren();
+  if(path){const image=document.createElement('img');image.src=path;image.alt=id==='topbarProfileAvatar'?'':name+' profile picture';target.appendChild(image);}
+  else{const fallback=document.createElement('span');fallback.textContent=initial;target.appendChild(fallback);}
+ });
+}
 async function loadAccountProfile(){
  if(!$('#accountFullName'))return;
  const r=await fetch('api/profile.php');if(!r.ok)return;
@@ -80,7 +90,28 @@ async function loadAccountProfile(){
  $('#accountFullName').value=p.full_name||'';
  $('#accountEmail').value=p.email||'';
  $('#accountLanguage').value=p.preferred_language||'en';
+ renderProfileImage(p.profile_image||'');
 }
+let profilePicturePreview='';
+$('#profilePictureInput')?.addEventListener('change',event=>{
+ const input=event.currentTarget,file=input.files?.[0],button=$('#uploadProfilePicture'),label=$('#profilePictureName');
+ if(profilePicturePreview){URL.revokeObjectURL(profilePicturePreview);profilePicturePreview='';}
+ if(!file){button.disabled=true;label.textContent='No new image selected.';return;}
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)){input.value='';button.disabled=true;label.textContent='Choose a JPG, PNG or WebP image.';toast('Use a JPG, PNG or WebP image.');return;}
+ if(file.size>2*1024*1024){input.value='';button.disabled=true;label.textContent='Choose an image smaller than 2 MB.';toast('Profile pictures must be 2 MB or smaller.');return;}
+ profilePicturePreview=URL.createObjectURL(file);const preview=$('#profilePhotoPreview');preview.replaceChildren();const image=document.createElement('img');image.src=profilePicturePreview;image.alt='Selected profile picture preview';preview.appendChild(image);label.textContent=file.name;button.disabled=false;
+});
+$('#uploadProfilePicture')?.addEventListener('click',async()=>{
+ const input=$('#profilePictureInput'),file=input.files?.[0],button=$('#uploadProfilePicture');if(!file)return;
+ const body=new FormData();body.append('action','upload_picture');body.append('csrf',window.JOM.csrf);body.append('profile_picture',file);
+ button.disabled=true;button.textContent='Uploading…';
+ try{
+  const r=await fetch('api/profile.php',{method:'POST',body}),d=await r.json();
+  if(!r.ok||!d.ok){toast(d.message||'Could not update the profile picture.');button.disabled=false;return;}
+  renderProfileImage(d.profile_image);input.value='';$('#profilePictureName').textContent='Profile picture updated.';if(profilePicturePreview){URL.revokeObjectURL(profilePicturePreview);profilePicturePreview='';}toast('Profile picture updated.');
+ }catch(error){toast('Could not update the profile picture.');button.disabled=false;}
+ finally{button.textContent='Upload picture';}
+});
 $('#saveAccountProfile')?.addEventListener('click',async()=>{
  const body={action:'update_account',full_name:$('#accountFullName').value,email:$('#accountEmail').value,preferred_language:$('#accountLanguage').value,csrf:window.JOM.csrf};
  const r=await jsonFetch('api/profile.php',{method:'POST',body:JSON.stringify(body)});
@@ -91,6 +122,7 @@ $('#saveAccountProfile')?.addEventListener('click',async()=>{
  if($('#profileSummaryEmail'))$('#profileSummaryEmail').textContent=p.email;
  if($('#profileName'))$('#profileName').value=p.full_name;
  if($('#profileLanguage'))$('#profileLanguage').value=p.preferred_language;
+ renderProfileImage(p.profile_image||'');
  toast('Account details saved.');
 });
 $('#changePassword')?.addEventListener('click',async()=>{
@@ -117,7 +149,21 @@ function table(head,rows){return '<div class="table-wrap"><table class="data-tab
 function insightQuery(){const q=new URLSearchParams();for(const [id,key] of [['insightFrom','from'],['insightTo','to'],['insightLanguage','language'],['insightScenario','scenario'],['insightLocation','location'],['insightBusinessType','business_type']])if($('#'+id)?.value.trim())q.set(key,$('#'+id).value.trim());return q;}
 async function loadInsights(){if(!$('#insightTranslations'))return;const q=insightQuery(),r=await fetch('api/insights.php?'+q);if(!r.ok){toast(await message(r,'Could not load insights.'));return;}const d=await r.json(),s=d.stats;$('#insightTranslations').textContent=s.translations;$('#insightReports').textContent=s.unclear_reports;$('#insightBusinesses').textContent=s.businesses;$('#insightPending').textContent=s.pending_businesses;$('#insightEvents').innerHTML=(d.events.length?table(['Event','Language','Scenario','Location','Business','Term','Total'],d.events.map(x=>[x.event_type,x.language_code,x.scenario,x.location_label,x.business_type,x.term_label,x.total])):'<div class="empty-state">No consented events.</div>')+(d.business_analysis.length?'<h3>Business type and communication category</h3>'+table(['Business type','Category','Total'],d.business_analysis.map(x=>[x.business_type,x.communication_category,x.total])):'')+(d.peak_periods.length?'<h3>Peak periods</h3>'+table(['Hour','Total'],d.peak_periods.map(x=>[x.hour_of_day+':00',x.total])):'');$('#insightIssues').innerHTML=(d.issues.length?table(['Issue','Language','Scenario','Term','Total','Confidence'],d.issues.map(x=>[x.issue_type,x.language_code,x.scenario,x.term_label,x.total,x.average_confidence??'Not provided'])):'')+(d.repeated_questions.length?'<h3>Repeated tourist enquiries</h3>'+table(['Question','Total'],d.repeated_questions.map(x=>[x.question_label,x.total])):'');$('#insightRecommendations').innerHTML=d.recommendations.map(x=>'<div class="scenario-step">'+escapeHtml(x)+'</div>').join('');q.set('format','csv');$('#exportInsights').href='api/insights.php?'+q;}
 $('#filterInsights')?.addEventListener('click',loadInsights);
-async function loadAdmin(){if(!$('#adminUsers'))return;const r=await fetch('api/admin.php');if(!r.ok)return;const d=await r.json();$('#adminUsers').textContent=d.stats.users;$('#adminBusinesses').textContent=d.stats.businesses;$('#adminPending').textContent=d.stats.pending;$('#adminTranslations').textContent=d.stats.translations;$('#pendingBusinesses').innerHTML=d.pending.map(b=>'<div class="record-item"><div><strong>'+escapeHtml(b.name)+'</strong><small>'+escapeHtml(b.category)+' · '+escapeHtml(b.email)+'</small></div><span><button data-decision="approve" data-bid="'+b.id+'">Approve</button><button data-decision="reject" data-bid="'+b.id+'">Reject</button></span></div>').join('')||'<div class="empty-state">No pending businesses.</div>';$$('[data-decision]').forEach(b=>b.onclick=async()=>{await jsonFetch('api/admin.php',{method:'POST',body:JSON.stringify({business_id:Number(b.dataset.bid),decision:b.dataset.decision,csrf:window.JOM.csrf})});loadAdmin();loadInsights();});}
+async function loadAdmin(){
+ if(!$('#adminUsers'))return;
+ const r=await fetch('api/admin.php');if(!r.ok)return;const d=await r.json();
+ $('#adminUsers').textContent=d.stats.users;$('#adminBusinesses').textContent=d.stats.businesses;$('#adminPending').textContent=d.stats.pending;$('#adminTranslations').textContent=d.stats.translations;
+ $('#exportAdminReport').href='api/admin.php?format=csv';
+ if(d.generated_at){const generated=new Date(d.generated_at);$('#adminReportUpdated').textContent='Updated '+generated.toLocaleString([], {dateStyle:'medium',timeStyle:'short'});}
+ const roleRows=(d.users_by_role||[]).map(row=>[String(row.role).replace(/^./,letter=>letter.toUpperCase()),row.active,row.pending,row.suspended,row.total]);
+ $('#adminRoleReport').innerHTML=roleRows.length?table(['Role','Active','Pending','Suspended','Total'],roleRows):'<div class="empty-state">No user accounts yet.</div>';
+ const businessRows=(d.businesses_by_status||[]).map(row=>[String(row.status).replace(/^./,letter=>letter.toUpperCase()),row.total]);
+ $('#adminBusinessReport').innerHTML=businessRows.length?table(['Status','Businesses'],businessRows):'<div class="empty-state">No businesses yet.</div>';
+ const activityRows=(d.recent_activity||[]).map(row=>[row.created_at,row.administrator,row.action,row.area]);
+ $('#adminActivity').innerHTML=activityRows.length?table(['Date','Administrator','Action','Area'],activityRows):'<div class="empty-state">No administrative activity yet.</div>';
+ $('#pendingBusinesses').innerHTML=d.pending.map(b=>'<div class="record-item"><div><strong>'+escapeHtml(b.name)+'</strong><small>'+escapeHtml(b.category)+' · '+escapeHtml(b.email)+'</small></div><span><button data-decision="approve" data-bid="'+b.id+'">Approve</button><button data-decision="reject" data-bid="'+b.id+'">Reject</button></span></div>').join('')||'<div class="empty-state">No pending businesses.</div>';
+ $$('[data-decision]').forEach(b=>b.onclick=async()=>{await jsonFetch('api/admin.php',{method:'POST',body:JSON.stringify({business_id:Number(b.dataset.bid),decision:b.dataset.decision,csrf:window.JOM.csrf})});loadAdmin();loadInsights();});
+}
 
 async function init(){actions(false);await loadPreferences();await Promise.all([loadRecords(),loadGlossary(),loadAssistance(),loadProfile(),loadAccountProfile(),loadBusiness(),loadBusinessApplication(),loadInsights(),loadAdmin()]);}init();const start=location.hash.slice(1);if(start&&document.getElementById(start)?.classList.contains('page'))showPage(start,{updateHash:false});else showPage('home',{updateHash:false});
 }());
