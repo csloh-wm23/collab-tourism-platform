@@ -64,18 +64,18 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="description" content="TravEase makes multilingual travel communication simple, personal and accessible.">
+    <meta name="description" content="TourLingo makes multilingual travel communication simple, personal and accessible.">
     <meta name="theme-color" content="#082f49">
-    <title>TravEase · Travel with confidence</title>
+    <title>TourLingo · Travel with confidence</title>
     <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body data-role="<?= htmlspecialchars($role) ?>">
 <div class="app-shell">
     <aside class="sidebar" id="mainNavigation" aria-hidden="false">
         <button id="closeMenuButton" class="sidebar-close" type="button" aria-label="Close navigation">×</button>
-        <a class="brand" href="#home" aria-label="TravEase overview">
+        <a class="brand" href="#home" aria-label="TourLingo overview">
             <span class="brand-mark">T</span>
-            <span>TravEase<small>Travel with confidence</small></span>
+            <span>TourLingo<small>Travel with confidence</small></span>
         </a>
         <nav aria-label="Primary navigation">
             <span class="nav-label">Explore</span>
@@ -112,7 +112,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
         <header class="topbar">
             <div class="topbar-leading">
                 <button id="menuButton" class="icon-button menu-button" type="button" aria-label="Open navigation" aria-controls="mainNavigation" aria-expanded="false"><span></span><span></span><span></span></button>
-                <div class="topbar-title"><small>TravEase</small><strong id="currentPageLabel">Overview</strong></div>
+                <div class="topbar-title"><small>TourLingo</small><strong id="currentPageLabel">Overview</strong></div>
             </div>
             <div class="top-actions">
                 <span id="todayLabel" class="today-label"></span>
@@ -201,7 +201,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             <?php endif; ?>
 
             <?php if ($role === 'business' && !$approved): ?>
-            <section class="page" id="application" data-title="Business application"><div class="page-heading"><div><span class="eyebrow">Partner with TravEase</span><h1>Business application</h1><p id="applicationStatus">Application status: <?= htmlspecialchars((string)($businessStatus ?? 'pending')) ?></p></div><span class="status-pill pending">Under review</span></div><div class="narrow-content"><article class="card-panel application-card"><div class="card-kicker"><span>⌂</span><div><h2>Business details</h2><p>Keep this information accurate while our team reviews your application.</p></div></div><label>Business name<input id="applicationName" maxlength="160"></label><label>Category<input id="applicationCategory" maxlength="80"></label><label>Address<textarea id="applicationAddress" maxlength="500" rows="4"></textarea></label><button id="resubmitApplication" class="primary">Save and submit for review</button></article></div></section>
+            <section class="page" id="application" data-title="Business application"><div class="page-heading"><div><span class="eyebrow">Partner with TourLingo</span><h1>Business application</h1><p id="applicationStatus">Application status: <?= htmlspecialchars((string)($businessStatus ?? 'pending')) ?></p></div><span class="status-pill pending">Under review</span></div><div class="narrow-content"><article class="card-panel application-card"><div class="card-kicker"><span>⌂</span><div><h2>Business details</h2><p>Keep this information accurate while our team reviews your application.</p></div></div><label>Business name<input id="applicationName" maxlength="160"></label><label>Category<input id="applicationCategory" maxlength="80"></label><label>Address<textarea id="applicationAddress" maxlength="500" rows="4"></textarea></label><button id="resubmitApplication" class="primary">Save and submit for review</button></article></div></section>
             <?php endif; ?>
 
             <?php if ($approved): ?>
@@ -237,13 +237,13 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 
             <?php if ($user): ?>
             <section class="page" id="profile" data-title="Profile & settings">
-                <div class="page-heading"><div><span class="eyebrow">Your TravEase account</span><h1>Profile & settings</h1><p>Keep your account, preferences and security details in one place.</p></div></div>
+                <div class="page-heading"><div><span class="eyebrow">Your TourLingo account</span><h1>Profile & settings</h1><p>Keep your account, preferences and security details in one place.</p></div></div>
                 <div class="profile-layout">
-                    <aside class="profile-summary-card"><span class="profile-avatar-large"><?= htmlspecialchars(mb_strtoupper(mb_substr($name, 0, 1))) ?></span><h2 id="profileSummaryName"><?= htmlspecialchars($name) ?></h2><p id="profileSummaryEmail"><?= htmlspecialchars((string)$user['email']) ?></p><span class="role-badge"><?= htmlspecialchars(ucfirst($role)) ?></span><div class="profile-summary-list"><div><span>Account status</span><strong><?= htmlspecialchars(ucfirst((string)$user['status'])) ?></strong></div><div><span>Member type</span><strong>TravEase <?= htmlspecialchars(ucfirst($role)) ?></strong></div></div></aside>
+                    <aside class="profile-summary-card"><span class="profile-avatar-large"><?= htmlspecialchars(mb_strtoupper(mb_substr($name, 0, 1))) ?></span><h2 id="profileSummaryName"><?= htmlspecialchars($name) ?></h2><p id="profileSummaryEmail"><?= htmlspecialchars((string)$user['email']) ?></p><span class="role-badge"><?= htmlspecialchars(ucfirst($role)) ?></span><div class="profile-summary-list"><div><span>Account status</span><strong><?= htmlspecialchars(ucfirst((string)$user['status'])) ?></strong></div><div><span>Member type</span><strong>TourLingo <?= htmlspecialchars(ucfirst($role)) ?></strong></div></div></aside>
                     <div class="profile-content">
                         <article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Account</span><h2>Personal details</h2></div></div><div class="form-grid two-columns"><label>Full name<input id="accountFullName" maxlength="120" value="<?= htmlspecialchars($name) ?>"></label><label>Email address<input id="accountEmail" type="email" maxlength="190" value="<?= htmlspecialchars((string)$user['email']) ?>"></label></div><label>Preferred language<select id="accountLanguage"><?php foreach (['en'=>'English','ms'=>'Bahasa Malaysia','zh'=>'Mandarin Chinese','id'=>'Indonesian','th'=>'Thai'] as $code=>$label): ?><option value="<?= $code ?>" <?= ($user['preferred_language'] ?? 'en') === $code ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></label><button id="saveAccountProfile" class="primary">Save account details</button></article>
                         <?php if ($role === 'tourist'): ?>
-                        <article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Travel preferences</span><h2>Make TravEase work for you</h2></div></div><div class="form-grid two-columns"><label>Profile name<input id="profileName" maxlength="120"></label><label>Travel language<select id="profileLanguage"><?= language_options() ?></select></label><label>Default destination<input id="profileDestination" maxlength="120" placeholder="Where are you going next?"></label><label>Emergency contact<input id="profileEmergencyContact" maxlength="120"></label></div><div class="form-grid two-columns"><label>Accessibility settings<textarea id="profileAccessibility" maxlength="500"></textarea></label><label>Dietary preferences<textarea id="profileDietary" maxlength="500"></textarea></label><label>Allergies<textarea id="profileAllergy" maxlength="500"></textarea></label><label>Optional emergency details<textarea id="profileEmergencyDetails" maxlength="500"></textarea></label></div><div class="preference-row"><label class="switch-row"><span><strong>Large text</strong><small>Increase text and control sizes.</small></span><input type="checkbox" id="profileLargeText"></label><label class="switch-row"><span><strong>Automatic voice playback</strong><small>Read successful translations aloud.</small></span><input type="checkbox" id="profileVoice"></label></div><button id="saveProfile" class="primary">Save travel preferences</button></article>
+                        <article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Travel preferences</span><h2>Make TourLingo work for you</h2></div></div><div class="form-grid two-columns"><label>Profile name<input id="profileName" maxlength="120"></label><label>Travel language<select id="profileLanguage"><?= language_options() ?></select></label><label>Default destination<input id="profileDestination" maxlength="120" placeholder="Where are you going next?"></label><label>Emergency contact<input id="profileEmergencyContact" maxlength="120"></label></div><div class="form-grid two-columns"><label>Accessibility settings<textarea id="profileAccessibility" maxlength="500"></textarea></label><label>Dietary preferences<textarea id="profileDietary" maxlength="500"></textarea></label><label>Allergies<textarea id="profileAllergy" maxlength="500"></textarea></label><label>Optional emergency details<textarea id="profileEmergencyDetails" maxlength="500"></textarea></label></div><div class="preference-row"><label class="switch-row"><span><strong>Large text</strong><small>Increase text and control sizes.</small></span><input type="checkbox" id="profileLargeText"></label><label class="switch-row"><span><strong>Automatic voice playback</strong><small>Read successful translations aloud.</small></span><input type="checkbox" id="profileVoice"></label></div><button id="saveProfile" class="primary">Save travel preferences</button></article>
                         <article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Privacy</span><h2>Data and consent</h2></div></div><label class="switch-row"><span><strong>Save translation history</strong><small>Keep your recent translations available.</small></span><input type="checkbox" id="historyConsent" checked></label><label class="switch-row"><span><strong>Share anonymous usage data</strong><small>Help improve common travel communication.</small></span><input type="checkbox" id="analyticsConsent"></label><button id="deleteJourneyData" class="danger ghost-danger">Delete saved journey data</button></article>
                         <?php endif; ?>
                         <article class="card-panel security-card"><div class="card-title-row"><div><span class="eyebrow">Security</span><h2>Change password</h2></div></div><div class="form-grid two-columns"><label>Current password<input id="currentPassword" type="password" autocomplete="current-password"></label><label>New password<input id="newPassword" type="password" minlength="8" autocomplete="new-password"></label></div><label>Confirm new password<input id="confirmNewPassword" type="password" minlength="8" autocomplete="new-password"></label><button id="changePassword" class="secondary">Update password</button></article>
@@ -252,7 +252,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             </section>
             <?php endif; ?>
 
-            <footer>© <?= date('Y') ?> TravEase · Multilingual travel communication for Malaysia</footer>
+            <footer>© <?= date('Y') ?> TourLingo · Multilingual travel communication for Malaysia</footer>
         </div>
     </main>
 </div>

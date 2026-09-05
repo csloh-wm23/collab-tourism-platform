@@ -62,24 +62,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="description" content="Sign in to your TravEase travel communication account.">
-    <title>Welcome back · TravEase</title>
+    <meta name="description" content="Sign in to your TourLingo travel communication account.">
+    <title>Welcome back · TourLingo</title>
     <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body class="auth-body">
     <aside class="auth-showcase">
-        <a class="brand" href="index.php"><span class="brand-mark">T</span><span>TravEase<small>Travel with confidence</small></span></a>
+        <a class="brand" href="index.php"><span class="brand-mark">T</span><span>TourLingo<small>Travel with confidence</small></span></a>
         <div class="auth-showcase-copy">
             <span class="eyebrow light-eyebrow">Welcome back</span>
             <h1>Your journey speaks every language.</h1>
             <p>Return to your saved phrases, travel preferences and business communication tools.</p>
             <div class="auth-points"><span><i></i>Five supported travel languages</span><span><i></i>Personalised phrase packs</span><span><i></i>Private and secure account access</span></div>
         </div>
-        <small>TravEase · Built for clearer journeys in Malaysia</small>
+        <small>TourLingo · Built for clearer journeys in Malaysia</small>
     </aside>
     <main class="auth-main">
         <section class="auth-card">
-            <a class="brand-inline" href="index.php">← Back to TravEase</a>
+            <a class="brand-inline" href="index.php">← Back to TourLingo</a>
             <span class="eyebrow">Account access</span>
             <h1>Log in</h1>
             <p class="muted">Continue where your last journey left off.</p>
@@ -89,9 +89,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
                 <label>Email address<input type="email" name="email" autocomplete="email" required autofocus placeholder="you@example.com"></label>
                 <label>Password<input type="password" name="password" autocomplete="current-password" required placeholder="Enter your password"></label>
-                <button class="primary" type="submit">Log in to TravEase</button>
+                <button class="primary" type="submit">Log in to TourLingo</button>
             </form>
-            <p class="auth-foot">New to TravEase? <a href="register.php">Create an account</a></p>
+            <p class="auth-foot">New to TourLingo? <a href="register.php">Create an account</a></p>
         </section>
     </main>
 </body>

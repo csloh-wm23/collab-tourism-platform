@@ -1,6 +1,6 @@
-# TravEase
+# TourLingo
 
-TravEase is an XAMPP-compatible Malaysia tourism communication system built with HTML, CSS, vanilla JavaScript, PHP and MySQL. It combines real-time translation, situation-ready travel support, personalised journey tools, tourism-business communication and anonymous service insights. It supports exactly:
+TourLingo is an XAMPP-compatible Malaysia tourism communication system built with HTML, CSS, vanilla JavaScript, PHP and MySQL. It combines real-time translation, situation-ready travel support, personalised journey tools, tourism-business communication and anonymous service insights. It supports exactly:
 
 - Bahasa Malaysia
 - English
