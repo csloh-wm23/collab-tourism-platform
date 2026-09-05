@@ -1,6 +1,6 @@
-# JomCommunicate
+# TravEase
 
-JomCommunicate is an XAMPP-compatible Malaysia tourism communication system built with HTML, CSS, vanilla JavaScript, PHP and MySQL. It follows the project proposal's five modules and supports exactly:
+TravEase is an XAMPP-compatible Malaysia tourism communication system built with HTML, CSS, vanilla JavaScript, PHP and MySQL. It combines real-time translation, situation-ready travel support, personalised journey tools, tourism-business communication and anonymous service insights. It supports exactly:
 
 - Bahasa Malaysia
 - English
@@ -16,7 +16,7 @@ JomCommunicate is an XAMPP-compatible Malaysia tourism communication system buil
 4. Copy `.env.example` to `.env` and add the Google Cloud API key.
 5. Open `http://localhost/jomcommunicate/`.
 
-If you already imported an older version of the database, import `database/migrations/20260828_document_features.sql` once instead of deleting your data.
+If you already imported an older version of the database, import `database/migrations/20260828_document_features.sql` and then `database/migrations/20260905_travease_profile.sql` once instead of deleting your data.
 
 ## Google Cloud configuration
 
@@ -46,7 +46,7 @@ Registration, rejection correction/resubmission and administrator approval; mult
 
 ### Personalised Tourist and Journey
 
-Guest and registered access, preferred language, accessibility, dietary, allergy and optional emergency preferences, persistent favourites, history, destination packs, situation-based phrase recommendations, consent controls and complete profile/saved-journey/offline-pack deletion.
+Guest and registered access, dedicated profile management, preferred language, accessibility, dietary, allergy and optional emergency preferences, password changes, persistent favourites, history, destination packs, situation-based phrase recommendations, consent controls and complete profile/saved-journey/offline-pack deletion.
 
 ### Communication Intelligence
 
