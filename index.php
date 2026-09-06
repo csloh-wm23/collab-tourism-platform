@@ -159,7 +159,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             </section>
 
             <section class="page" id="communication" data-title="Translate">
-                <div class="page-heading"><div><span class="eyebrow">Live communication</span><h1>Translate and speak</h1><p>Clear, confident conversations wherever your journey takes you.</p></div><button id="largeMessage" class="secondary">Large-screen message</button></div>
+                <div class="page-heading"><div><span class="eyebrow">Live communication</span><h1>Translate and speak</h1><p>Clear, confident conversations wherever your journey takes you.</p></div><button id="largeMessage" class="secondary" type="button">Large-screen message</button></div>
                 <div class="translation-workspace">
                     <article class="card-panel input-panel">
                         <div class="card-kicker"><span>01</span><div><h2>Your message</h2><p>Choose a situation to improve the translation.</p></div></div>
@@ -235,7 +235,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 
             <?php if ($role === 'admin' && $staff): ?>
             <section class="page" id="admin" data-title="Administration">
-                <div class="page-heading"><div><span class="eyebrow">Platform operations</span><h1>Administration</h1><p>Review platform health, account activity and business access.</p></div><div class="report-actions"><span id="adminReportUpdated">Live report</span><a id="exportAdminReport" class="secondary" href="api/admin.php?format=csv">Export report CSV</a></div></div>
+                <div class="page-heading"><div><span class="eyebrow">Platform operations</span><h1>Administration</h1><p>Review platform health, account activity and business access.</p></div><div class="report-actions"><span id="adminReportUpdated">Live report</span><div class="export-actions"><a id="exportAdminReport" class="secondary" href="api/admin.php?format=csv">Export CSV</a><a id="exportAdminPdf" class="secondary" href="api/admin.php?format=pdf">Export PDF</a></div></div></div>
                 <div class="stat-grid"><article><span class="stat-icon aqua">◎</span><strong id="adminUsers">—</strong><small>Active users</small></article><article><span class="stat-icon blue">⌂</span><strong id="adminBusinesses">—</strong><small>Approved businesses</small></article><article><span class="stat-icon gold">◷</span><strong id="adminPending">—</strong><small>Pending review</small></article><article><span class="stat-icon coral">文</span><strong id="adminTranslations">—</strong><small>Translations</small></article></div>
                 <div class="admin-report-grid mt-large"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Accounts</span><h2>Users by role</h2></div></div><div id="adminRoleReport"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Business network</span><h2>Review status</h2></div></div><div id="adminBusinessReport"></div></article></div>
                 <div class="admin-operations-grid mt-large"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Review queue</span><h2>Pending business registrations</h2></div></div><div id="pendingBusinesses"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Audit trail</span><h2>Recent activity</h2></div></div><div id="adminActivity"></div></article></div>

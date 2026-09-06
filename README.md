@@ -52,7 +52,7 @@ Guest and registered access, dedicated profile management with validated JPG/PNG
 
 Anonymous, server-verified consent analysis for languages, scenarios, unclear and low-confidence voice input, terms, locations, business types, peak periods and repeated free-form enquiries. Editor/admin reports include date/language/scenario/location/business-type filters, complete multi-section CSV export and data-specific improvement recommendations. Translation issue reports retain analytical dimensions and a one-way text fingerprint, not reporter identity or conversation text.
 
-Administrators also have a live operational report for user status by role, business-review status, recent audit activity and pending approvals. The full administration report exports as an Excel-friendly CSV.
+Administrators also have a live operational report for user status by role, business-review status, recent audit activity and pending approvals. The full administration report exports as either an Excel-friendly CSV or a polished multi-page PDF.
 
 ## Accounts and security
 

@@ -154,6 +154,7 @@ async function loadAdmin(){
  const r=await fetch('api/admin.php');if(!r.ok)return;const d=await r.json();
  $('#adminUsers').textContent=d.stats.users;$('#adminBusinesses').textContent=d.stats.businesses;$('#adminPending').textContent=d.stats.pending;$('#adminTranslations').textContent=d.stats.translations;
  $('#exportAdminReport').href='api/admin.php?format=csv';
+ $('#exportAdminPdf').href='api/admin.php?format=pdf';
  if(d.generated_at){const generated=new Date(d.generated_at);$('#adminReportUpdated').textContent='Updated '+generated.toLocaleString([], {dateStyle:'medium',timeStyle:'short'});}
  const roleRows=(d.users_by_role||[]).map(row=>[String(row.role).replace(/^./,letter=>letter.toUpperCase()),row.active,row.pending,row.suspended,row.total]);
  $('#adminRoleReport').innerHTML=roleRows.length?table(['Role','Active','Pending','Suspended','Total'],roleRows):'<div class="empty-state">No user accounts yet.</div>';

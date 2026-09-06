@@ -5,6 +5,7 @@ header('Cache-Control: no-store');
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/admin_pdf.php';
 
 function reply(array $body, int $status = 200): never
 {
@@ -102,12 +103,30 @@ function export_admin_csv(array $data): never
     }
 
     fputcsv($output, []);
+    fputcsv($output, ['Pending business registrations']);
+    fputcsv($output, ['Business', 'Category', 'Owner email']);
+    foreach ($data['pending'] as $row) {
+        fputcsv($output, [$row['name'], $row['category'], $row['email']]);
+    }
+
+    fputcsv($output, []);
     fputcsv($output, ['Recent administrative activity']);
     fputcsv($output, ['Date', 'Administrator', 'Action', 'Area']);
     foreach ($data['recent_activity'] as $row) {
         fputcsv($output, [$row['created_at'], $row['administrator'], $row['action'], $row['area']]);
     }
     fclose($output);
+    exit;
+}
+
+function export_admin_pdf(array $data): never
+{
+    $filename = 'tourlingo-administration-report-' . date('Y-m-d') . '.pdf';
+    $pdf = render_admin_pdf($data);
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Length: ' . strlen($pdf));
+    echo $pdf;
     exit;
 }
 
@@ -121,8 +140,12 @@ try {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     if ($method === 'GET') {
         $data = admin_dataset($db);
-        if (($_GET['format'] ?? '') === 'csv') {
+        $format = (string)($_GET['format'] ?? '');
+        if ($format === 'csv') {
             export_admin_csv($data);
+        }
+        if ($format === 'pdf') {
+            export_admin_pdf($data);
         }
         reply(['ok' => true] + $data);
     }

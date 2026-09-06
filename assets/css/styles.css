@@ -164,6 +164,21 @@ p { margin-top: 0; }
 .topbar-title strong { font-size: 1rem; }
 .top-actions { gap: 10px; }
 .today-label { color: var(--muted); font-size: .82rem; margin-right: 4px; }
+.icon-button {
+  align-items: center;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  color: var(--ink);
+  display: inline-flex;
+  flex: 0 0 42px;
+  height: 42px;
+  justify-content: center;
+  padding: 0;
+  width: 42px;
+}
+.menu-button { flex-direction: column; gap: 4px; }
+.menu-button span { background: currentColor; border-radius: 999px; display: block; height: 2px; width: 18px; }
 .profile-chip {
   background: transparent;
   border: 0;
@@ -571,6 +586,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
 .data-table th { color: var(--muted); font-size: .7rem; letter-spacing: .03em; text-transform: uppercase; }
 .report-actions { align-items: flex-end; display: flex; flex-direction: column; gap: 8px; }
 .report-actions > span { color: var(--muted); font-size: .72rem; }
+.export-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .admin-report-grid, .admin-operations-grid { display: grid; gap: 22px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .admin-operations-grid { grid-template-columns: minmax(300px, .8fr) minmax(0, 1.2fr); }
 .admin-report-grid .card-panel, .admin-operations-grid .card-panel { min-width: 0; }
@@ -702,7 +718,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
 .toast-message.show { opacity: 1; transform: none; }
 .emergency-overlay {
   align-items: center;
-  background: linear-gradient(140deg, #a7162c, #dc2626);
+  background: #000;
   color: #fff;
   display: none;
   flex-direction: column;
@@ -860,9 +876,14 @@ footer { color: var(--muted); font-size: .75rem; padding: 38px 16px 18px; text-a
 }
 
 @media (max-width: 760px) {
-  .topbar { min-height: 68px; padding: 9px 14px; }
+  .topbar { gap: 10px; min-height: 68px; padding: 9px 12px; }
+  .topbar-leading { min-width: 0; }
+  .topbar-title { min-width: 0; }
+  .topbar-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-actions { flex: 0 0 auto; }
+  .top-actions .small-button { white-space: nowrap; }
   .today-label, .profile-chip > div, .guest-chip { display: none; }
-  .content-wrap { padding: 28px 14px 16px; }
+  .content-wrap { padding: 26px 12px 16px; }
   .welcome-panel { grid-template-columns: 1fr; min-height: 430px; padding: 30px 24px; }
   .welcome-visual { height: 140px; }
   .welcome-copy h1 { font-size: 2.7rem; }
@@ -891,20 +912,34 @@ footer { color: var(--muted); font-size: .75rem; padding: 38px 16px 18px; text-a
 
 @media (max-width: 480px) {
   .top-actions { gap: 6px; }
-  .top-actions .small-button { min-height: 38px; padding: 7px 10px; }
-  .topbar-title small { display: none; }
+  .top-actions .small-button { font-size: .82rem; min-height: 38px; padding: 7px 9px; }
+  .topbar-title { display: none; }
+  .topbar-leading { gap: 0; }
+  .icon-button { flex-basis: 38px; height: 38px; width: 38px; }
   .action-grid, .stat-grid, .module-tabs { grid-template-columns: 1fr; }
   .page-heading { align-items: stretch; flex-direction: column; }
+  .page-heading { gap: 14px; margin-bottom: 22px; }
+  .page-heading h1 { font-size: 1.9rem; }
   .report-actions { align-items: stretch; }
-  .report-actions .secondary { justify-content: center; }
+  .export-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .report-actions .secondary { justify-content: center; width: 100%; }
   .profile-photo-editor { align-items: flex-start; }
   .language-row { grid-template-columns: 1fr; }
   .swap-button { margin: 0 auto; transform: rotate(90deg); width: 43px; }
   .panel-actions { align-items: stretch; flex-direction: column; }
   .translate-cta { width: 100%; }
   .card-panel { padding: 20px 17px; }
+  .card-kicker { gap: 12px; margin-bottom: 18px; }
+  .card-kicker > span { flex: 0 0 40px; height: 40px; width: 40px; }
   .welcome-actions > * { width: 100%; }
   .info-card { align-items: flex-start; }
   .info-card button { margin-left: 0; }
   .auth-showcase { min-height: 250px; }
+}
+
+@media (max-width: 360px) {
+  .topbar { padding-inline: 9px; }
+  .top-actions .small-button { padding-inline: 7px; }
+  .assistant-builder .button-row > button { width: 100%; }
+  .profile-photo-editor { flex-direction: column; }
 }
