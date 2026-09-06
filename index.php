@@ -75,16 +75,20 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 <div class="app-shell">
     <aside class="sidebar" id="mainNavigation" aria-hidden="false">
         <button id="closeMenuButton" class="sidebar-close" type="button" aria-label="Close navigation">×</button>
-        <a class="brand" href="#home" aria-label="TourLingo overview">
+        <a class="brand" href="#<?= $user ? 'home' : 'communication' ?>" aria-label="TourLingo <?= $user ? 'overview' : 'translator' ?>">
             <span class="brand-mark">T</span>
             <span>TourLingo<small>Travel with confidence</small></span>
         </a>
         <nav aria-label="Primary navigation">
             <span class="nav-label">Explore</span>
-            <?= nav_button('home', 'Overview', 'home', true) ?>
-            <?= nav_button('communication', 'Translate', 'translate') ?>
-            <?= nav_button('assistance', 'Travel assistant', 'compass') ?>
-            <?php if (!$user || $role === 'tourist'): ?>
+            <?php if ($user): ?>
+                <?= nav_button('home', 'Overview', 'home', true) ?>
+            <?php endif; ?>
+            <?= nav_button('communication', 'Translate', 'translate', !$user) ?>
+            <?php if ($user): ?>
+                <?= nav_button('assistance', 'Travel assistant', 'compass') ?>
+            <?php endif; ?>
+            <?php if ($user && $role === 'tourist'): ?>
                 <?= nav_button('journey', 'My journey', 'journey') ?>
             <?php endif; ?>
             <?php if ($approved || ($role === 'business' && !$approved) || $staff): ?>
@@ -114,7 +118,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
         <header class="topbar">
             <div class="topbar-leading">
                 <button id="menuButton" class="icon-button menu-button" type="button" aria-label="Open navigation" aria-controls="mainNavigation" aria-expanded="false"><span></span><span></span><span></span></button>
-                <div class="topbar-title"><small>TourLingo</small><strong id="currentPageLabel">Overview</strong></div>
+                <div class="topbar-title"><small>TourLingo</small><strong id="currentPageLabel"><?= $user ? 'Overview' : 'Translate' ?></strong></div>
             </div>
             <div class="top-actions">
                 <span id="todayLabel" class="today-label"></span>
@@ -131,6 +135,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
         </header>
 
         <div class="content-wrap">
+            <?php if ($user): ?>
             <section class="page active" id="home" data-title="Overview">
                 <div class="welcome-panel">
                     <div class="welcome-copy">
@@ -145,7 +150,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                 <div class="action-grid">
                     <button class="action-card" type="button" data-page="communication"><span class="action-icon aqua">文</span><strong>Translate a message</strong><small>Text, voice and two-way conversation</small><b>Open translator →</b></button>
                     <button class="action-card" type="button" data-page="assistance"><span class="action-icon blue">✦</span><strong>Prepare for a situation</strong><small>Restaurants, hotels, transport and emergencies</small><b>Choose assistance →</b></button>
-                    <?php if (!$user || $role === 'tourist'): ?>
+                    <?php if ($role === 'tourist'): ?>
                         <button class="action-card" type="button" data-page="journey"><span class="action-icon coral">⌖</span><strong>Plan my journey</strong><small>Saved packs, preferences and useful phrases</small><b>View journey →</b></button>
                     <?php elseif ($approved): ?>
                         <button class="action-card" type="button" data-page="business"><span class="action-icon coral">⌂</span><strong>Manage my business</strong><small>Public profile, phrases and visitor questions</small><b>Open studio →</b></button>
@@ -157,13 +162,13 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                 </div>
                 <div class="home-info-grid"><article class="info-card emergency-info"><span class="info-symbol">999</span><div><strong>Emergency in Malaysia</strong><p>Use the bilingual emergency card to show essential details clearly.</p></div><button type="button" data-page="assistance">Prepare card</button></article><article class="info-card"><span class="info-symbol soft">5</span><div><strong>Languages available</strong><p>English, Bahasa Malaysia, Mandarin, Indonesian and Thai.</p></div></article></div>
             </section>
+            <?php endif; ?>
 
-            <section class="page" id="communication" data-title="Translate">
+            <section class="page<?= !$user ? ' active' : '' ?>" id="communication" data-title="Translate">
                 <div class="page-heading"><div><span class="eyebrow">Live communication</span><h1>Translate and speak</h1><p>Clear, confident conversations wherever your journey takes you.</p></div><button id="largeMessage" class="secondary" type="button">Large-screen message</button></div>
                 <div class="translation-workspace">
                     <article class="card-panel input-panel">
-                        <div class="card-kicker"><span>01</span><div><h2>Your message</h2><p>Choose a situation to improve the translation.</p></div></div>
-                        <label>Tourism scenario<select id="communicationScenario"><option value="restaurant">Restaurant</option><option value="hotel">Hotel</option><option value="transport">Transportation</option><option value="shopping">Shopping</option><option value="medical">Medical</option><option value="emergency">Emergency</option><option value="culture">General / culture</option></select></label>
+                        <div class="card-kicker"><span>01</span><div><h2>Your message</h2><p>Enter or speak the message you want to translate.</p></div></div>
                         <div class="language-row"><label>From<select id="sourceLanguage"><?= language_options(true) ?></select></label><button id="swapLanguages" class="swap-button" type="button" aria-label="Swap languages">⇄</button><label>To<select id="targetLanguage"><?= language_options() ?></select></label></div>
                         <textarea id="sourceText" class="message-input" maxlength="500" rows="6" placeholder="Type what you want to say…"></textarea>
                         <div class="field-footer"><button id="listenInput" class="link-button">● Speak</button><span><span id="characterCount">0</span>/500</span></div>
@@ -181,6 +186,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                 <div class="resource-grid mt-large"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Local context</span><h2>Malaysian terminology</h2></div></div><div id="glossaryList" class="record-list"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Your library</span><h2>Saved communication</h2></div></div><div id="recentTranslations" class="record-list"></div><h3>Favourites</h3><div id="savedPhrases" class="record-list"></div></article></div>
             </section>
 
+            <?php if ($user): ?>
             <section class="page" id="assistance" data-title="Travel assistant">
                 <div class="page-heading"><div><span class="eyebrow">Situation-ready support</span><h1>Your travel assistant</h1><p>Prepare the right words before you need them.</p></div></div>
                 <div class="assistant-layout">
@@ -188,17 +194,13 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                     <article class="card-panel needs-card"><div class="card-kicker"><span>♥</span><div><h2>Needs & emergency card</h2><p>Keep essential information easy to show.</p></div></div><div class="form-grid two-columns"><label>Dietary requirement<input id="assistDietary" maxlength="500" placeholder="Vegetarian, halal…"></label><label>Allergies<input id="assistAllergy" maxlength="500" placeholder="Peanuts, medicine…"></label><label>Religious requirement<input id="assistReligious" maxlength="500" placeholder="No pork or alcohol…"></label><label>Spice level<select id="assistSpice"><option>Mild</option><option>Medium</option><option>Spicy</option><option>Not spicy</option></select></label></div><button id="prepareNeeds" class="secondary">Prepare restaurant request</button><div class="divider"></div><label>Emergency details<textarea id="assistEmergency" maxlength="500" rows="3" placeholder="Name, condition and a contact number"></textarea></label><button id="generateEmergency" class="danger">Generate bilingual emergency card</button><div id="culturalTips" class="meta-box"></div></article>
                 </div>
             </section>
+            <?php endif; ?>
 
-            <?php if (!$user || $role === 'tourist'): ?>
+            <?php if ($user && $role === 'tourist'): ?>
             <section class="page" id="journey" data-title="My journey">
-                <div class="page-heading"><div><span class="eyebrow">Personal travel space</span><h1>My journey</h1><p><?= $user ? 'Saved packs and suggestions shaped around your plans.' : 'Your useful phrases stay on this device. Sign in to sync a travel profile.' ?></p></div><?php if ($user): ?><button type="button" class="secondary" data-page="profile">Edit travel preferences</button><?php endif; ?></div>
-                <?php if ($role === 'tourist' && $user): ?>
-                    <div class="journey-summary"><div><span>Preferred language</span><strong id="journeyLanguageSummary">—</strong></div><div><span>Next destination</span><strong id="journeyDestinationSummary">Not set</strong></div><div><span>Accessibility</span><strong id="journeyAccessibilitySummary">Personalised</strong></div></div>
-                    <div class="grid-two journey-grid"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Saved for offline</span><h2>Destination packs</h2></div></div><div id="destinationPacks" class="record-list"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Picked for you</span><h2>Recommended phrases</h2></div></div><div id="personalRecommendations" class="scenario-steps"></div></article></div>
-                <?php else: ?>
-                    <article class="sign-in-card"><div><span class="eyebrow">Continue your journey</span><h2>Save your preferences on every device</h2><p>Create a free tourist profile for destination packs, accessibility preferences and personalised phrases.</p></div><div class="button-row"><a class="primary" href="register.php">Create tourist profile</a><a class="secondary" href="login.php">Log in</a></div></article>
-                    <article class="card-panel mt"><h2>Privacy on this device</h2><label class="switch-row"><span><strong>Save translation history</strong><small>Keep recent translations in this browser.</small></span><input type="checkbox" id="historyConsent" checked></label><label class="switch-row"><span><strong>Share anonymous usage data</strong><small>Help improve common travel communication.</small></span><input type="checkbox" id="analyticsConsent"></label><button id="deleteJourneyData" class="danger ghost-danger">Clear saved journey data</button></article>
-                <?php endif; ?>
+                <div class="page-heading"><div><span class="eyebrow">Personal travel space</span><h1>My journey</h1><p>Saved packs and suggestions shaped around your plans.</p></div><button type="button" class="secondary" data-page="profile">Edit travel preferences</button></div>
+                <div class="journey-summary"><div><span>Preferred language</span><strong id="journeyLanguageSummary">—</strong></div><div><span>Next destination</span><strong id="journeyDestinationSummary">Not set</strong></div><div><span>Accessibility</span><strong id="journeyAccessibilitySummary">Personalised</strong></div></div>
+                <div class="grid-two journey-grid"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Saved for offline</span><h2>Destination packs</h2></div></div><div id="destinationPacks" class="record-list"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Picked for you</span><h2>Recommended phrases</h2></div></div><div id="personalRecommendations" class="scenario-steps"></div></article></div>
             </section>
             <?php endif; ?>
 
