@@ -171,7 +171,21 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                         <div class="card-kicker"><span>01</span><div><h2>Your message</h2><p>Enter or speak the message you want to translate.</p></div></div>
                         <div class="language-row"><label>From<select id="sourceLanguage"><?= language_options(true) ?></select></label><button id="swapLanguages" class="swap-button" type="button" aria-label="Swap languages">⇄</button><label>To<select id="targetLanguage"><?= language_options() ?></select></label></div>
                         <textarea id="sourceText" class="message-input" maxlength="500" rows="6" placeholder="Type what you want to say…"></textarea>
-                        <div class="field-footer"><button id="listenInput" class="link-button">● Speak</button><span><span id="characterCount">0</span>/500</span></div>
+                        <div class="field-footer">
+                            <div class="voice-controls">
+                                <button id="listenInput" class="voice-start" type="button" aria-pressed="false">
+                                    <span class="voice-button-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Zm7-4a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.92V20H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-2.08A7 7 0 0 0 19 11Z"/></svg></span>
+                                    <span class="voice-button-copy"><strong>Start speaking</strong><small>Use your microphone</small></span>
+                                </button>
+                                <div id="voiceActive" class="voice-active" hidden>
+                                    <span class="recording-pulse" aria-hidden="true"></span>
+                                    <span class="voice-live-copy" aria-live="polite"><strong>Speaking…</strong><small>Keep talking until you are finished</small></span>
+                                    <span class="voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                                    <button id="finishSpeaking" class="voice-finish" type="button">Finish speaking</button>
+                                </div>
+                            </div>
+                            <span class="character-counter"><span id="characterCount">0</span>/500</span>
+                        </div>
                         <div class="panel-actions"><label class="check-row"><input type="checkbox" id="twoWayMode"> Two-way conversation mode</label><button id="translateButton" class="primary translate-cta">Translate message</button></div>
                     </article>
                     <article class="card-panel output-panel">
