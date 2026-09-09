@@ -69,23 +69,30 @@ Create the first administrator from a terminal:
 php scripts/create_admin.php "Admin Name" "admin@example.com" "StrongPassword"
 ```
 
-### Pending business demo accounts
+### Demo accounts
 
-Populate the Administration review queue with five reusable test businesses:
+Create or reset every presentation account, including all roles, account states, and a populated Administration review queue:
 
 ```bash
-php scripts/seed_pending_businesses.php
+php scripts/seed_demo_accounts.php
 ```
 
 All accounts use the password `TourLingoDemo#2026`:
 
+- `tourist.demo@tourlingo.test` — active tourist
+- `business.pending@tourlingo.test` — pending business
+- `business.approved@tourlingo.test` — approved business with sample public content
+- `business.rejected@tourlingo.test` — rejected business
+- `editor.demo@tourlingo.test` — active insights editor
+- `admin.demo@tourlingo.test` — active administrator
+- `suspended.demo@tourlingo.test` — suspended tourist
 - `test.cafe@gmail.com` — Rasa Malaysia Cafe
 - `test.hotel@gmail.com` — City Lights Boutique Hotel
 - `test.transport@gmail.com` — KL Easy Ride
 - `test.touragency@gmail.com` — Discover Malaysia Tours
 - `test.shop@gmail.com` — Local Treasures Market
 
-The script is idempotent: running it again resets these accounts and businesses to pending status.
+The script is idempotent. Running it again restores the documented roles and states, resets login locks and returns the five Gmail businesses to the pending queue.
 
 ## Automated tests
 
