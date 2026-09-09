@@ -69,6 +69,24 @@ Create the first administrator from a terminal:
 php scripts/create_admin.php "Admin Name" "admin@example.com" "StrongPassword"
 ```
 
+### Pending business demo accounts
+
+Populate the Administration review queue with five reusable test businesses:
+
+```bash
+php scripts/seed_pending_businesses.php
+```
+
+All accounts use the password `TourLingoDemo#2026`:
+
+- `test.cafe@gmail.com` — Rasa Malaysia Cafe
+- `test.hotel@gmail.com` — City Lights Boutique Hotel
+- `test.transport@gmail.com` — KL Easy Ride
+- `test.touragency@gmail.com` — Discover Malaysia Tours
+- `test.shop@gmail.com` — Local Treasures Market
+
+The script is idempotent: running it again resets these accounts and businesses to pending status.
+
 ## Automated tests
 
 GitHub Actions runs PHP lint, JavaScript syntax and behaviour tests, clean-schema and migration imports, application requirement checks, database/schema/workflow checks, and guest HTTP consent/analytics smoke tests on every push and pull request. External Google Cloud responses and full visual browser rendering still require manual testing with configured credentials and XAMPP.
