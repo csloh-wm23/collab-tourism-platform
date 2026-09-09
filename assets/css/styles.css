@@ -186,7 +186,7 @@ p { margin-top: 0; }
   padding: 3px;
   text-align: left;
 }
-.profile-chip > span {
+.profile-chip > .chip-avatar, .guest-chip > span {
   align-items: center;
   background: var(--brand-soft);
   border: 1px solid #bdece5;
@@ -1012,7 +1012,9 @@ input, select, button, .small-button { min-height: 44px; }
 .account-menu { position: relative; }
 .account-menu > summary { list-style: none; }
 .account-menu > summary::-webkit-details-marker { display: none; }
-.menu-chevron { align-items: center; background: transparent !important; border: 0 !important; color: var(--muted) !important; font-size: .9rem; height: auto !important; transition: transform .18s ease; width: auto !important; }
+.account-menu > summary { cursor: pointer; }
+.menu-chevron { align-items: center; color: var(--muted); display: inline-flex; flex: 0 0 20px; height: 20px; justify-content: center; transition: transform .18s ease; width: 20px; }
+.menu-chevron svg { fill: none; height: 16px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; width: 16px; }
 .account-menu[open] .menu-chevron { transform: rotate(180deg); }
 .account-popover { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); min-width: 245px; padding: 8px; position: absolute; right: 0; top: calc(100% + 10px); z-index: 50; }
 .account-popover::before { border-bottom: 8px solid var(--paper); border-left: 8px solid transparent; border-right: 8px solid transparent; content: ""; position: absolute; right: 22px; top: -8px; }
