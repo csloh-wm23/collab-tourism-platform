@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="description" content="Sign in to your TourLingo travel communication account.">
     <title>Welcome back · TourLingo</title>
+    <script>try{if(localStorage.getItem('jomcommunicate_theme')==='dark')document.documentElement.classList.add('dark-mode');}catch(error){}</script>
     <link rel="stylesheet" href="assets/css/styles.css?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/css/styles.css') ?: '1')) ?>">
 </head>
 <body class="auth-body">
