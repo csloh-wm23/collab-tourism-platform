@@ -47,6 +47,7 @@ check(str_contains(file_get_contents($root.'/assets/js/app.js'),"defaultPage=win
 check(str_contains($index,'id="voiceActive"')&&str_contains($index,'id="finishSpeaking"')&&str_contains($index,'Start speaking'),'Visible start and finish controls for microphone input are missing.');
 $appJs=file_get_contents($root.'/assets/js/app.js');
 check(str_contains($appJs,'r.continuous=true')&&str_contains($appJs,'r.interimResults=true')&&str_contains($appJs,"addEventListener('click',finishRecognition)"),'Continuous microphone capture must remain active until the user finishes it.');
+check(substr_count($all,'styles.css?v=')>=4&&str_contains($index,'width="19" height="19"'),'Updated interface styles must bypass stale browser caches and constrain the microphone icon.');
 check(str_contains($index,'id="largeMessage" class="secondary"'),'Large-screen message action must retain the neutral button style.');
 check(str_contains($css,'.emergency-overlay')&&str_contains($css,'background: #000;'),'Large-screen message display must use a black background.');
 check(str_contains($index,'exportAdminReport')&&str_contains($index,'exportAdminPdf')&&str_contains($index,'adminRoleReport')&&str_contains($index,'adminActivity'),'Administration reporting interface is missing.');

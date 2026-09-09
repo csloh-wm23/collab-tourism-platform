@@ -9,7 +9,7 @@ $slug = trim((string)($_GET['slug'] ?? ''));
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="description" content="Traveller-friendly business information and approved multilingual phrases from TourLingo.">
     <title>Tourism business · TourLingo</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/styles.css?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/css/styles.css') ?: '1')) ?>">
 </head>
 <body class="public-business">
     <header class="public-topbar">
