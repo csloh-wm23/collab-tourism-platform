@@ -58,7 +58,7 @@ function nav_icon(string $name): string
 
 function nav_button(string $page, string $label, string $icon, bool $active = false): string
 {
-    return '<button class="nav-link' . ($active ? ' active' : '') . '" type="button" data-page="' . htmlspecialchars($page) . '">' . nav_icon($icon) . '<span>' . htmlspecialchars($label) . '</span></button>';
+    return '<button class="nav-link' . ($active ? ' active' : '') . '" type="button" data-page="' . htmlspecialchars($page) . '" title="' . htmlspecialchars($label) . '">' . nav_icon($icon) . '<span>' . htmlspecialchars($label) . '</span></button>';
 }
 ?>
 <!doctype html>

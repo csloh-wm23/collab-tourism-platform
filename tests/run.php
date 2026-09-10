@@ -24,6 +24,7 @@ foreach(['Automatic detection','Two-way conversation','Report unclear','Indonesi
 check(str_contains($all,'dark-mode')&&str_contains($all,'jomcommunicate_theme'),'Persistent dark mode is missing.');
 check(str_contains($all,'topbar-title'),'Header title/date spacing class is missing.');
 check(str_contains($all,'sidebarBackdrop')&&str_contains($all,'closeMenuButton'),'Dismissible navigation controls are missing.');
+check(str_contains($all,'animateMenuButton')&&str_contains($all,'menu-animating'),'Animated persistent hamburger navigation is missing.');
 check(str_contains($all,"event.key==='Escape'")&&str_contains($all,"setMenu(false)"),'Keyboard and programmatic navigation dismissal are missing.');
 check(str_contains($all,"addEventListener('hashchange'")&&str_contains($all,"history.pushState"),'Hash and browser-history navigation handling is missing.');
 check(!str_contains($all,"'confidence'=>0.92")&&!str_contains($all,'Number(data.confidence||0)'),'A fabricated translation confidence remains.');
