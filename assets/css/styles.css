@@ -181,7 +181,7 @@ p { margin-top: 0; }
   z-index: 20;
 }
 .topbar-leading, .top-actions, .profile-chip { align-items: center; display: flex; }
-.topbar-leading { gap: 13px; transition: padding-left .22s ease; }
+.topbar-leading { gap: 13px; }
 .topbar-title { display: flex; flex-direction: column; line-height: 1.2; }
 .topbar-title small { color: var(--brand-dark); font-size: .7rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .topbar-title strong { font-size: 1rem; }
@@ -1020,9 +1020,7 @@ footer { color: var(--muted); font-size: .75rem; padding: 38px 16px 18px; text-a
 }
 
 @media (min-width: 981px) {
-  .menu-button { background: var(--paper); border-color: var(--line-strong); color: var(--ink); display: inline-flex !important; left: 18px; position: fixed; top: 17px; z-index: 32; }
-  .sidebar-collapsed .topbar-leading,
-  .topbar-leading:has(.menu-button.menu-animating) { padding-left: 56px; }
+  .menu-button { background: var(--paper); border-color: var(--line-strong); color: var(--ink); display: inline-flex !important; }
 }
 
 @media (max-width: 760px) {
