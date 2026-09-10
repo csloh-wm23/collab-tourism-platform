@@ -815,6 +815,11 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
 .public-topbar-actions { align-items: center; display: flex; gap: 10px; }
 .public-contrast-button { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .22); color: #fff; }
 .public-topbar .secondary { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .22); color: #fff; }
+html:not(.dark-mode) .public-topbar { background: rgba(255, 255, 255, .92); border-bottom: 1px solid var(--line); }
+html:not(.dark-mode) .public-business .public-topbar .public-brand { color: var(--ink-strong); }
+html:not(.dark-mode) .public-business .public-topbar .public-brand small { color: var(--muted); }
+html:not(.dark-mode) .public-contrast-button,
+html:not(.dark-mode) .public-topbar .secondary { background: var(--paper); border-color: var(--line-strong); color: var(--ink); }
 .public-hero {
   align-items: end;
   background:
