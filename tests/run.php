@@ -54,6 +54,9 @@ check(substr_count($all,'styles.css?v=')>=4&&str_contains($index,'width="19" hei
 check(str_contains($index,'id="largeMessage" class="secondary"'),'Large-screen message action must retain the neutral button style.');
 check(str_contains($css,'.emergency-overlay')&&str_contains($css,'background: #000;'),'Large-screen message display must use a black background.');
 check(str_contains($css,'[hidden] { display: none !important; }'),'Hidden loading and conditional content must not be forced visible by component CSS.');
+check(str_contains($css,'.public-business summary')&&str_contains($css,'min-height: 44px;'),'Public FAQ rows must remain large enough for touch interaction.');
+check(str_contains($css,'.swap-button { margin: 0 auto; transform: rotate(90deg); width: 44px; }'),'The mobile language-swap control must remain a full-size touch target.');
+check(str_contains($index,"\$businessStatus === 'rejected' ? 'Needs revision' : 'Under review'")&&str_contains($css,'.status-pill.rejected'),'Rejected applications need an accurate, styled status badge.');
 $businessPage=file_get_contents($root.'/business.php');
 check(str_contains($businessPage,"localStorage.getItem('jomcommunicate_theme')")&&str_contains($businessPage,'showLoadError'),'The public business page must preserve theme and recover from load errors.');
 check(str_contains($index,'exportAdminReport')&&str_contains($index,'exportAdminPdf')&&str_contains($index,'adminRoleReport')&&str_contains($index,'adminActivity'),'Administration reporting interface is missing.');

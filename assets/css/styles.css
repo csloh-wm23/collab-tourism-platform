@@ -594,6 +594,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
   padding: 7px 11px;
 }
 .status-pill.pending { background: var(--gold-soft); color: #99650d; }
+.status-pill.rejected { background: var(--danger-soft); color: var(--danger); }
 .status-pill.approved, .role-badge { background: var(--brand-soft); color: var(--brand-dark); }
 
 .module-tabs {
@@ -766,7 +767,13 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
 .public-primary-grid { align-items: stretch; }
 .public-phrase { border: 0; text-align: left; width: 100%; }
 .public-business details { background: var(--paper-soft); border: 1px solid var(--line); border-radius: 12px; margin: 8px 0; padding: 11px 13px; }
-.public-business summary { cursor: pointer; font-weight: 750; }
+.public-business summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-weight: 750;
+  min-height: 44px;
+}
 
 .toast-message {
   background: var(--ink-strong);
@@ -920,6 +927,7 @@ footer { color: var(--muted); font-size: .75rem; padding: 38px 16px 18px; text-a
 .dark-mode .journey-summary { background: linear-gradient(120deg, var(--paper), var(--paper-soft)); }
 .dark-mode .ghost-danger, .dark-mode .reject { border-color: #7f343a; color: #ffb4b4; }
 .dark-mode .status-pill.pending { color: #f7cd68; }
+.dark-mode .status-pill.rejected { color: #ff9f9f; }
 .dark-mode .alert.error { border-color: #7f343a; color: #ffb4b4; }
 .dark-mode .alert.good { border-color: #236d65; color: #72ead9; }
 .dark-mode .alert.warning { border-color: #725b26; color: #f7cd68; }
@@ -1011,7 +1019,7 @@ footer { color: var(--muted); font-size: .75rem; padding: 38px 16px 18px; text-a
   .report-actions .secondary { justify-content: center; width: 100%; }
   .profile-photo-editor { align-items: flex-start; }
   .language-row { grid-template-columns: 1fr; }
-  .swap-button { margin: 0 auto; transform: rotate(90deg); width: 43px; }
+  .swap-button { margin: 0 auto; transform: rotate(90deg); width: 44px; }
   .field-footer { align-items: stretch; flex-direction: column; }
   .voice-start, .voice-active { width: 100%; }
   .voice-active { flex-wrap: wrap; }
