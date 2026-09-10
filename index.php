@@ -177,7 +177,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                 <div class="page-heading"><div><span class="eyebrow">Live communication</span><h1>Translate and speak</h1><p>Clear, confident conversations wherever your journey takes you.</p></div><button id="largeMessage" class="secondary" type="button">Large-screen message</button></div>
                 <div class="translation-workspace">
                     <article class="card-panel input-panel">
-                        <div class="card-kicker"><span>01</span><div><h2>Your message</h2><p>Enter or speak the message you want to translate.</p></div></div>
+                        <div class="section-heading"><h2>Your message</h2><p>Enter or speak the message you want to translate.</p></div>
                         <div class="language-row"><label>From<select id="sourceLanguage"><?= language_options(true) ?></select></label><button id="swapLanguages" class="swap-button" type="button" aria-label="Swap languages">⇄</button><label>To<select id="targetLanguage"><?= language_options() ?></select></label></div>
                         <textarea id="sourceText" class="message-input" maxlength="500" rows="6" placeholder="Type what you want to say…" aria-label="Message to translate"></textarea>
                         <div class="field-footer">
@@ -198,7 +198,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                         <div class="panel-actions"><label class="check-row"><input type="checkbox" id="twoWayMode"> Two-way conversation mode</label><button id="translateButton" class="primary translate-cta">Translate message</button></div>
                     </article>
                     <article class="card-panel output-panel">
-                        <div class="card-kicker"><span>02</span><div><h2>Translation</h2><p>Ready to play, copy or save.</p></div></div>
+                        <div class="section-heading"><h2>Translation</h2><p>Ready to play, copy or save.</p></div>
                         <div id="translationResult" class="translation-result">Your translation will appear here.</div>
                         <div id="translationMeta" class="meta-box">Language and confidence appear after translation.</div>
                         <div id="translationAlternatives" class="record-list"></div>
