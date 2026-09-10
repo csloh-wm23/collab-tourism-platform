@@ -16,7 +16,7 @@ function optional_filter(string $key,int $maximum):string{
 
 try{
     $db=database();
-    $from=preg_match('/^\d{4}-\d{2}-\d{2}$/',(string)($_GET['from']??''))?(string)$_GET['from']:'2000-01-01';
+    $from=preg_match('/^\d{4}-\d{2}-\d{2}$/',(string)($_GET['from']??''))?(string)$_GET['from']:date('Y-m-d',strtotime('-29 days'));
     $to=preg_match('/^\d{4}-\d{2}-\d{2}$/',(string)($_GET['to']??''))?(string)$_GET['to']:date('Y-m-d');
     if($from>$to)throw new InvalidArgumentException('The start date must not be after the end date.');
     $language=optional_filter('language',12);if($language!=='')$language=clean_language($language);
@@ -43,6 +43,12 @@ try{
     $translationCount=$db->prepare('SELECT COUNT(*) FROM records WHERE '.implode(' AND ',$recordWhere));$translationCount->execute($recordParams);
     $stats=['translations'=>(int)$translationCount->fetchColumn(),'phrases'=>(int)$db->query("SELECT (SELECT COUNT(*) FROM records WHERE record_type='phrase')+(SELECT COUNT(*) FROM business_phrases)")->fetchColumn(),'businesses'=>(int)$db->query("SELECT COUNT(*) FROM businesses WHERE verification_status='approved'")->fetchColumn(),'pending_businesses'=>(int)$db->query("SELECT COUNT(*) FROM businesses WHERE verification_status='pending'")->fetchColumn(),'unclear_reports'=>array_sum(array_map(fn($r)=>(int)$r['total'],$issues))];
 
+    $periodDays=max(1,(int)floor((strtotime($to)-strtotime($from))/86400)+1);$previousTo=date('Y-m-d',strtotime($from.' -1 day'));$previousFrom=date('Y-m-d',strtotime($previousTo.' -'.($periodDays-1).' days'));
+    $previousRecordParams=$recordParams;$previousRecordParams[0]=$previousFrom;$previousRecordParams[1]=$previousTo;$previousTranslations=$db->prepare('SELECT COUNT(*) FROM records WHERE '.implode(' AND ',$recordWhere));$previousTranslations->execute($previousRecordParams);
+    $previousReportParams=$reportParams;$previousReportParams[0]=$previousFrom;$previousReportParams[1]=$previousTo;$previousReports=$db->prepare('SELECT COUNT(*) FROM translation_reports WHERE '.implode(' AND ',$reportWhere));$previousReports->execute($previousReportParams);
+    $currentEvents=array_sum(array_map(fn($row)=>(int)$row['total'],$events));$previousEventParams=$eventParams;$previousEventParams[0]=$previousFrom;$previousEventParams[1]=$previousTo;$previousEvents=$db->prepare('SELECT COUNT(*) FROM analytics_events WHERE '.implode(' AND ',$eventWhere));$previousEvents->execute($previousEventParams);
+    $comparisons=['period'=>['from'=>$from,'to'=>$to,'previous_from'=>$previousFrom,'previous_to'=>$previousTo],'translations'=>['current'=>$stats['translations'],'previous'=>(int)$previousTranslations->fetchColumn()],'issues'=>['current'=>$stats['unclear_reports'],'previous'=>(int)$previousReports->fetchColumn()],'events'=>['current'=>$currentEvents,'previous'=>(int)$previousEvents->fetchColumn()]];
+
     $recommendations=[];
     if($issues){$top=$issues[0];$recommendations[]='Review '.$top['scenario'].' content for '.$top['language_code'].'; it has '.$top['total'].' reported '.$top['issue_type'].' issue(s).';}
     $difficult=array_values(array_filter($issues,fn($row)=>$row['term_label']!=='—'));if($difficult){$recommendations[]='Clarify the Malaysian term “'.$difficult[0]['term_label'].'” in the relevant phrase pack and glossary.';}
@@ -63,6 +69,6 @@ try{
         fclose($out);exit;
     }
     header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
-    echo json_encode(['ok'=>true,'stats'=>$stats,'events'=>$events,'issues'=>$issues,'repeated_questions'=>$questions,'business_analysis'=>$businessRows,'peak_periods'=>$peakRows,'recommendations'=>$recommendations,'filters'=>$filters],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    echo json_encode(['ok'=>true,'stats'=>$stats,'comparisons'=>$comparisons,'events'=>$events,'issues'=>$issues,'repeated_questions'=>$questions,'business_analysis'=>$businessRows,'peak_periods'=>$peakRows,'recommendations'=>$recommendations,'filters'=>$filters],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 }catch(InvalidArgumentException $e){http_response_code(422);header('Content-Type: application/json');echo json_encode(['ok'=>false,'message'=>$e->getMessage()]);}
 catch(Throwable $e){error_log('Insights: '.$e->getMessage());http_response_code(500);header('Content-Type: application/json');echo json_encode(['ok'=>false,'message'=>'Insights are temporarily unavailable.']);}

@@ -107,6 +107,20 @@ try {
     );
     $term->execute([$approvedId, 'Mamak', 'A casual Malaysian Indian Muslim eatery, often open late.']);
 
+    $sampleQuestions = [
+        ['11111111111111111111111111111111', 'Opening hours', 'en', 'Are you open after 9 PM?', 'new', null],
+        ['22222222222222222222222222222222', 'Dietary requirement', 'ms', 'Do you have a halal vegetarian meal?', 'in_progress', null],
+        ['33333333333333333333333333333333', 'Accessibility', 'en', 'Is the entrance wheelchair accessible?', 'answered', 'Yes. The main entrance has step-free access.'],
+    ];
+    $sampleQuestion = $db->prepare(
+        'INSERT INTO business_interactions (business_id,category,language_code,question_label,public_token,status,reply_text,answered_at)
+         SELECT ?,?,?,?,?,?,?,IF(?="answered",NOW(),NULL) WHERE NOT EXISTS
+         (SELECT 1 FROM business_interactions WHERE public_token=?)'
+    );
+    foreach ($sampleQuestions as [$token, $category, $language, $question, $status, $reply]) {
+        $sampleQuestion->execute([$approvedId, $category, $language, $question, $token, $status, $reply, $status, $token]);
+    }
+
     $db->commit();
 } catch (Throwable $error) {
     if ($db->inTransaction()) {
@@ -117,4 +131,3 @@ try {
 
 echo "Created or reset all 12 TourLingo demo accounts.\n";
 echo "Shared password: {$password}\n";
-

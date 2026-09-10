@@ -232,8 +232,14 @@ CREATE TABLE IF NOT EXISTS business_interactions (
   category VARCHAR(80) NOT NULL DEFAULT 'General',
   language_code VARCHAR(12) NULL,
   question_label VARCHAR(250) NULL,
+  public_token CHAR(32) NULL UNIQUE,
+  status ENUM('new','in_progress','answered','archived') NOT NULL DEFAULT 'new',
+  reply_text VARCHAR(1000) NULL,
+  answered_at DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_business_interaction (business_id, created_at),
+  INDEX idx_business_inbox (business_id, status, created_at),
   CONSTRAINT fk_interaction_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
