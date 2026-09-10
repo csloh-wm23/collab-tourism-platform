@@ -810,7 +810,10 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
   min-height: 82px;
   padding: 14px max(24px, calc((100vw - 1180px) / 2));
 }
-.public-brand { margin: 0; }
+.public-business .public-topbar .public-brand { color: #fff; margin: 0; }
+.public-business .public-topbar .public-brand small { color: #a9cbd4; }
+.public-topbar-actions { align-items: center; display: flex; gap: 10px; }
+.public-contrast-button { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .22); color: #fff; }
 .public-topbar .secondary { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .22); color: #fff; }
 .public-hero {
   align-items: end;
