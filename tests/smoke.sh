@@ -14,7 +14,7 @@ grep -q 'Thai' /tmp/jom-index.html
 if grep -qi 'Tamil' /tmp/jom-index.html; then exit 1; fi
 curl --fail --silent 'http://127.0.0.1:8080/api/glossary.php' | grep -q 'Tapau'
 curl --fail --silent 'http://127.0.0.1:8080/api/assistance.php?scenario=medical&destination=Malaysia' | grep -q 'doctor'
-grep -q 'Phrase language' /tmp/jom-index.html
+if grep -q 'id="assistance"' /tmp/jom-index.html; then exit 1; fi
 grep -q 'Translation confidence: not provided by Google' assets/js/core.js
 csrf=$(sed -n 's/.*window.JOM={csrf:"\([^"]*\)".*/\1/p' /tmp/jom-index.html)
 test -n "$csrf"
