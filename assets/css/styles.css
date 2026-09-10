@@ -1040,7 +1040,7 @@ footer { color: var(--muted); font-size: .75rem; padding: 38px 16px 18px; text-a
   .topbar-leading { transition: padding-left .22s ease; }
   .menu-button { background: var(--paper); border-color: var(--line-strong); color: var(--ink); display: inline-flex !important; left: -62px; position: absolute; top: 17px; transition: background .2s ease, border-color .2s ease, color .2s ease, left .22s ease; z-index: 32; }
   .sidebar-collapsed .menu-button { left: 18px; }
-  .sidebar-collapsed .topbar-leading { padding-left: 56px; }
+  .sidebar-collapsed .topbar-leading { padding-left: 22px; }
 }
 
 @media (max-width: 760px) {
