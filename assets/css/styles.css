@@ -419,7 +419,7 @@ select {
   padding-right: 44px;
 }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: .82; }
-input:focus, select:focus, textarea:focus { background-color: #fff; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(15, 174, 154, .13); }
+input:focus, select:focus, textarea:focus { background-color: #fff; border-color: var(--brand); box-shadow: 0 0 0 2px rgba(15, 174, 154, .16); outline: none; }
 input[type="checkbox"], input[type="radio"],
 input[type="checkbox"]:focus, input[type="radio"]:focus {
   accent-color: var(--brand);
