@@ -179,7 +179,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                     <article class="card-panel input-panel">
                         <div class="card-kicker"><span>01</span><div><h2>Your message</h2><p>Enter or speak the message you want to translate.</p></div></div>
                         <div class="language-row"><label>From<select id="sourceLanguage"><?= language_options(true) ?></select></label><button id="swapLanguages" class="swap-button" type="button" aria-label="Swap languages">⇄</button><label>To<select id="targetLanguage"><?= language_options() ?></select></label></div>
-                        <textarea id="sourceText" class="message-input" maxlength="500" rows="6" placeholder="Type what you want to say…"></textarea>
+                        <textarea id="sourceText" class="message-input" maxlength="500" rows="6" placeholder="Type what you want to say…" aria-label="Message to translate"></textarea>
                         <div class="field-footer">
                             <div class="voice-controls">
                                 <button id="listenInput" class="voice-start" type="button" aria-pressed="false">
@@ -303,7 +303,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
     </main>
 </div>
 <div id="toast" class="toast-message" role="status" aria-live="polite"></div>
-<div id="messageOverlay" class="emergency-overlay" aria-hidden="true"><button id="closeOverlay" aria-label="Close message">×</button><strong id="overlaySource"></strong><strong id="overlayTranslation"></strong><span id="overlayExtra"></span></div>
+<div id="messageOverlay" class="emergency-overlay" role="dialog" aria-modal="true" aria-label="Large-screen translated message" aria-hidden="true"><button id="closeOverlay" type="button" aria-label="Close message">×</button><strong id="overlaySource"></strong><strong id="overlayTranslation"></strong><span id="overlayExtra"></span></div>
 <script>window.JOM={csrf:<?= json_encode(csrf_token()) ?>,authenticated:<?= $user ? 'true' : 'false' ?>,role:<?= json_encode($role) ?>};</script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>if(!window.QRCode){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"><\/script>');}</script>

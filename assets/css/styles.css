@@ -30,6 +30,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -171,11 +172,11 @@ p { margin-top: 0; }
   border-radius: 12px;
   color: var(--ink);
   display: inline-flex;
-  flex: 0 0 42px;
-  height: 42px;
+  flex: 0 0 44px;
+  height: 44px;
   justify-content: center;
   padding: 0;
-  width: 42px;
+  width: 44px;
 }
 .menu-button { flex-direction: column; gap: 4px; }
 .menu-button span { background: currentColor; border-radius: 999px; display: block; height: 2px; width: 18px; }
@@ -526,7 +527,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
 .record-item small, .empty-state { color: var(--muted); font-size: .78rem; }
 .record-item > button { background: transparent; border: 0; color: var(--danger); font-size: 1.2rem; }
 .record-item > span { display: flex; flex-wrap: wrap; gap: 6px; }
-.record-item > span button { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font-size: .76rem; padding: 6px 9px; }
+.record-item > span button { align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); display: inline-flex; font-size: .76rem; justify-content: center; min-height: 44px; min-width: 44px; padding: 6px 9px; }
 .record-item > span button:last-child { color: var(--danger); }
 .scenario-steps { margin-top: 16px; }
 .scenario-step {
@@ -800,7 +801,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
 }
 .emergency-overlay.open { display: flex; }
 .emergency-overlay strong { color: #fff; font-size: clamp(2rem, 7vw, 5rem); }
-.emergency-overlay button { background: transparent; border: 0; color: #fff; font-size: 2.8rem; position: absolute; right: 22px; top: 12px; }
+.emergency-overlay button { align-items: center; background: transparent; border: 0; color: #fff; display: inline-flex; font-size: 2.8rem; height: 48px; justify-content: center; position: absolute; right: 22px; top: 12px; width: 48px; }
 
 .alert { border-radius: 12px; margin: 14px 0; padding: 12px 14px; }
 .alert.error { background: var(--danger-soft); border: 1px solid #f4caca; color: #9e2929; }
@@ -851,6 +852,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(.25); opacity: .48; tra
 .auth-card .primary { margin-top: 17px; width: 100%; }
 .brand-inline { color: var(--brand-dark); display: block; font-size: .82rem; font-weight: 850; letter-spacing: .08em; margin-bottom: 24px; text-decoration: none; text-transform: uppercase; width: max-content; }
 .auth-foot { color: var(--muted); margin-top: 22px; text-align: center; }
+.brand-inline, .auth-foot a { align-items: center; display: inline-flex; min-height: 44px; }
 .auth-card [hidden] { display: none !important; }
 .auth-benefit {
   align-items: flex-start;
@@ -996,10 +998,10 @@ footer { color: var(--muted); font-size: .75rem; padding: 38px 16px 18px; text-a
 
 @media (max-width: 480px) {
   .top-actions { gap: 6px; }
-  .top-actions .small-button { font-size: .82rem; min-height: 38px; padding: 7px 9px; }
+  .top-actions .small-button { font-size: .82rem; min-height: 44px; padding: 7px 9px; }
   .topbar-title { display: none; }
   .topbar-leading { gap: 0; }
-  .icon-button { flex-basis: 38px; height: 38px; width: 38px; }
+  .icon-button { flex-basis: 44px; height: 44px; width: 44px; }
   .action-grid, .stat-grid, .module-tabs { grid-template-columns: 1fr; }
   .page-heading { align-items: stretch; flex-direction: column; }
   .page-heading { gap: 14px; margin-bottom: 22px; }

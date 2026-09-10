@@ -45,11 +45,17 @@ check(!str_contains($index,'id="communicationScenario"'),'The translator must no
 check(str_contains($index,"if (\$user && \$role === 'tourist')")&&str_contains($index,"nav_button('communication', 'Translate', 'translate', !\$user)"),'Guest navigation must be limited to the translator.');
 check(str_contains(file_get_contents($root.'/assets/js/app.js'),"defaultPage=window.JOM.authenticated?'home':'communication'")&&str_contains(file_get_contents($root.'/assets/js/app.js'),"translationScenario='culture'"),'Guest routing or neutral translation context is missing.');
 check(str_contains($index,'id="voiceActive"')&&str_contains($index,'id="finishSpeaking"')&&str_contains($index,'Start speaking'),'Visible start and finish controls for microphone input are missing.');
+check(str_contains($index,'aria-label="Message to translate"'),'The translator message field needs an accessible name.');
+check(str_contains($index,'role="dialog"')&&str_contains($index,'aria-modal="true"'),'The large-screen message must be exposed as a modal dialog.');
 $appJs=file_get_contents($root.'/assets/js/app.js');
 check(str_contains($appJs,'r.continuous=true')&&str_contains($appJs,'r.interimResults=true')&&str_contains($appJs,"addEventListener('click',finishRecognition)"),'Continuous microphone capture must remain active until the user finishes it.');
+check(str_contains($appJs,'Delete saved item')&&str_contains($appJs,'Add to favourites'),'Saved-record icon controls need accessible labels.');
 check(substr_count($all,'styles.css?v=')>=4&&str_contains($index,'width="19" height="19"'),'Updated interface styles must bypass stale browser caches and constrain the microphone icon.');
 check(str_contains($index,'id="largeMessage" class="secondary"'),'Large-screen message action must retain the neutral button style.');
 check(str_contains($css,'.emergency-overlay')&&str_contains($css,'background: #000;'),'Large-screen message display must use a black background.');
+check(str_contains($css,'[hidden] { display: none !important; }'),'Hidden loading and conditional content must not be forced visible by component CSS.');
+$businessPage=file_get_contents($root.'/business.php');
+check(str_contains($businessPage,"localStorage.getItem('jomcommunicate_theme')")&&str_contains($businessPage,'showLoadError'),'The public business page must preserve theme and recover from load errors.');
 check(str_contains($index,'exportAdminReport')&&str_contains($index,'exportAdminPdf')&&str_contains($index,'adminRoleReport')&&str_contains($index,'adminActivity'),'Administration reporting interface is missing.');
 check(str_contains($index,'profilePictureInput')&&str_contains($index,'uploadProfilePicture'),'Profile picture controls are missing.');
 $login=file_get_contents($root.'/login.php');check(str_contains($login,'failed_login_attempts')&&str_contains($login,'INTERVAL 15 MINUTE'),'Login lockout is missing.');
