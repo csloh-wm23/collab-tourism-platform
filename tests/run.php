@@ -31,7 +31,7 @@ check(!str_contains($all,"'confidence'=>0.92")&&!str_contains($all,'Number(data.
 check(str_contains($all,'not_provided_by_google')&&str_contains($all,'confidenceLabel'),'Truthful translation-confidence handling is missing.');
 check(str_contains($all,'twoWayLanguages')&&str_contains($all,"source==='auto'?detected:source"),'Automatic-source two-way switching is not covered.');
 check(str_contains($all,'prepareNextTwoWayTurn(current,from)')&&str_contains($all,"direction={source:current.to,target:current.from}"),'Two-way mode must switch the next speaker back to the previous language.');
-check(str_contains($all,"Choose the spoken language before using the microphone"),'Automatic voice input must not silently fall back to English.');
+check(str_contains($all,'speechRecognitionLanguage')&&str_contains($all,'recoverableSpeechError'),'Continuous automatic-language voice input is not covered.');
 check(str_contains($all,'guest_preferences')&&str_contains($all,"consent_type='anonymous_analytics'"),'Server-side analytics consent verification is missing.');
 check(str_contains($all,'source_hash')&&str_contains($all,'VALUES(NULL,NULL,NULL'),'Anonymous issue reporting is incomplete.');
 check(str_contains($all,'business_profile_translations')&&str_contains($all,'toggle_item')&&str_contains($all,'update_item'),'Multilingual editable business content is incomplete.');

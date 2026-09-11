@@ -8,4 +8,9 @@ assert.equal(core.confidenceLabel(null),'Translation confidence: not provided by
 assert.equal(core.confidenceLabel(0.74),'Confidence: 74%');
 assert.equal(core.normalizedAnalyticsLanguage('auto'),null);
 assert.equal(core.normalizedAnalyticsLanguage('id'),'id');
+assert.equal(core.speechRecognitionLanguage('ms','en-GB'),'ms-MY');
+assert.equal(core.speechRecognitionLanguage('auto','en-GB'),'en-GB');
+assert.equal(core.speechRecognitionLanguage('auto',''),'en-US');
+assert.equal(core.recoverableSpeechError('no-speech'),true);
+assert.equal(core.recoverableSpeechError('not-allowed'),false);
 console.log('PASS: frontend conversation and confidence behaviour');

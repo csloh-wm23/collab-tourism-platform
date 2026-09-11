@@ -15,5 +15,12 @@
     function normalizedAnalyticsLanguage(language){
         return !language||language==='auto'?null:language;
     }
-    return {twoWayLanguages,confidenceLabel,normalizedAnalyticsLanguage};
+    function speechRecognitionLanguage(language,browserLanguage='en-US'){
+        const locales={en:'en-US',ms:'ms-MY',zh:'zh-CN',id:'id-ID',th:'th-TH'};
+        return locales[language]||browserLanguage||'en-US';
+    }
+    function recoverableSpeechError(error){
+        return error==='no-speech';
+    }
+    return {twoWayLanguages,confidenceLabel,normalizedAnalyticsLanguage,speechRecognitionLanguage,recoverableSpeechError};
 }));

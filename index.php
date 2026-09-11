@@ -313,7 +313,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 <script>window.JOM={csrf:<?= json_encode(csrf_token()) ?>,authenticated:<?= $user ? 'true' : 'false' ?>,role:<?= json_encode($role) ?>};</script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>if(!window.QRCode){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"><\/script>');}</script>
-<script src="assets/js/core.js"></script>
+<script src="assets/js/core.js?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/js/core.js') ?: '1')) ?>"></script>
 <script src="assets/js/app.js?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/js/app.js') ?: '1')) ?>"></script>
 </body>
 </html>
