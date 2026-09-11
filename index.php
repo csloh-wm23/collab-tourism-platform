@@ -196,22 +196,24 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                             </div>
                             <span class="character-counter"><span id="characterCount">0</span>/500</span>
                         </div>
-                        <div class="panel-actions"><label class="check-row"><input type="checkbox" id="twoWayMode"> Two-way conversation mode</label><button id="translateButton" class="primary translate-cta">Translate message</button></div>
+                        <div class="panel-actions"><?php if ($user): ?><label class="check-row"><input type="checkbox" id="twoWayMode"> Two-way conversation mode</label><?php endif; ?><button id="translateButton" class="primary translate-cta">Translate message</button></div>
                     </article>
                     <article class="card-panel output-panel">
-                        <div class="section-heading"><h2>Translation</h2><p>Ready to play, copy or save.</p></div>
+                        <div class="section-heading"><h2>Translation</h2><p><?= $user ? 'Ready to play, copy or save.' : 'Ready to play or copy.' ?></p></div>
                         <div id="translationResult" class="translation-result">Your translation will appear here.</div>
                         <div id="translationMeta" class="meta-box">Language and confidence appear after translation.</div>
                         <div id="translationAlternatives" class="record-list"></div>
-                        <div class="button-row result-actions"><button id="speakResult" class="secondary" disabled>Voice</button><button id="copyResult" class="secondary" disabled>Copy</button><button id="savePhrase" class="primary" disabled>Save</button><button id="reportTranslation" class="danger ghost-danger" disabled>Report unclear</button></div>
-                        <div id="twoWayReplies" class="chip-row"></div>
+                        <div class="button-row result-actions"><button id="speakResult" class="secondary" disabled>Voice</button><button id="copyResult" class="secondary" disabled>Copy</button><?php if ($user): ?><button id="savePhrase" class="primary" disabled>Save</button><button id="reportTranslation" class="danger ghost-danger" disabled>Report unclear</button><?php endif; ?></div>
+<?php if ($user): ?>                        <div id="twoWayReplies" class="chip-row"></div><?php endif; ?>
                     </article>
                 </div>
+<?php if ($user): ?>
                 <article class="card-panel conversation-panel mt-large">
                     <div class="card-title-row"><div><span class="eyebrow">Conversation mode</span><h2>Conversation timeline</h2><p>Keep both sides of the conversation together with replay and retry controls.</p></div><button id="clearConversation" class="secondary" type="button">Clear conversation</button></div>
                     <div id="conversationTimeline" class="conversation-timeline" aria-live="polite"><div class="empty-state">Your translated messages will appear here in order.</div></div>
                 </article>
                 <div class="resource-grid mt-large"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Local context</span><h2>Malaysian terminology</h2></div></div><div id="glossaryList" class="record-list"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Your library</span><h2>Saved communication</h2></div></div><div id="recentTranslations" class="record-list"></div><h3>Favourites</h3><div id="savedPhrases" class="record-list"></div></article></div>
+<?php endif; ?>
             </section>
 
             <?php if ($user): ?>
