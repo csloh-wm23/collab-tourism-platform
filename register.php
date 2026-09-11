@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </aside>
     <main class="auth-main">
         <section class="auth-card">
+            <a class="auth-mobile-brand" href="index.php" aria-label="TourLingo home"><img src="assets/logo.svg" width="40" height="40" alt=""><span>TourLingo<small>Travel with confidence</small></span></a>
             <a class="brand-inline" href="index.php">← Back to TourLingo</a>
             <h1>Create your account</h1>
             <p class="muted">Choose the account that fits your journey.</p>

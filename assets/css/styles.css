@@ -927,6 +927,7 @@ body .auth-showcase .brand small { color: #b9dfe5; }
 .auth-points i { background: var(--brand-bright); border-radius: 50%; height: 8px; width: 8px; }
 .auth-showcase > small { color: #84adb7; }
 .auth-main { align-items: center; display: flex; justify-content: center; padding: clamp(28px, 6vw, 78px); }
+.auth-mobile-brand { display: none; }
 .auth-card {
   background: transparent;
   max-width: 560px;
@@ -1082,6 +1083,10 @@ footer { color: var(--muted); font-size: .75rem; padding: 38px 16px 18px; text-a
   .auth-showcase-copy h1 { font-size: 2.7rem; }
   .auth-showcase > small { display: none; }
   .auth-main { padding: 34px 20px 50px; }
+  .auth-mobile-brand { display: flex; align-items: center; gap: 10px; color: var(--ink-strong); text-decoration: none; font-size: 1.15rem; font-weight: 800; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--line); min-height: 44px; }
+  .auth-mobile-brand img { flex: 0 0 40px; }
+  .auth-mobile-brand small { display: block; color: var(--muted); font-size: .72rem; font-weight: 500; }
+  .auth-card > .brand-inline { display: none; }
   .details-list { grid-template-columns: 1fr; }
   .public-topbar { padding: 12px 18px; }
   .public-hero { align-items: stretch; flex-direction: column; }
