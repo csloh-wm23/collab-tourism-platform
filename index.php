@@ -64,6 +64,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 <!doctype html>
 <html lang="en">
 <head>
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="description" content="TourLingo makes multilingual travel communication simple, personal and accessible.">
@@ -76,7 +77,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
     <aside class="sidebar" id="mainNavigation" aria-hidden="false">
         <button id="closeMenuButton" class="sidebar-close" type="button" aria-label="Close navigation"><span></span><span></span><span></span></button>
         <a class="brand" href="#<?= $user ? 'home' : 'communication' ?>" aria-label="TourLingo <?= $user ? 'overview' : 'translator' ?>">
-            <span class="brand-mark">T</span>
+            <span class="brand-mark"><img src="assets/logo.svg" width="46" height="46" alt=""></span>
             <span>TourLingo<small>Travel with confidence</small></span>
         </a>
         <nav aria-label="Primary navigation">

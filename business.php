@@ -5,6 +5,7 @@ $slug = trim((string)($_GET['slug'] ?? ''));
 <!doctype html>
 <html lang="en">
 <head>
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="description" content="Traveller-friendly business information and approved multilingual phrases from TourLingo.">
@@ -14,7 +15,7 @@ $slug = trim((string)($_GET['slug'] ?? ''));
 </head>
 <body class="public-business">
     <header class="public-topbar">
-        <a class="brand public-brand" href="index.php"><span class="brand-mark">T</span><span>TourLingo<small>Travel with confidence</small></span></a>
+        <a class="brand public-brand" href="index.php"><span class="brand-mark"><img src="assets/logo.svg" width="46" height="46" alt=""></span><span>TourLingo<small>Travel with confidence</small></span></a>
         <div class="public-topbar-actions">
             <button id="publicContrastButton" class="icon-button public-contrast-button" type="button" aria-label="Enable dark mode" aria-pressed="false" title="Enable dark mode">☾</button>
             <a class="secondary" href="index.php">Open travel tools</a>

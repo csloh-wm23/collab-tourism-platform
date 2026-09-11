@@ -60,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!doctype html>
 <html lang="en">
 <head>
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="description" content="Sign in to your TourLingo travel communication account.">
@@ -69,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="auth-body">
     <aside class="auth-showcase">
-        <a class="brand" href="index.php"><span class="brand-mark">T</span><span>TourLingo<small>Travel with confidence</small></span></a>
+        <a class="brand" href="index.php"><span class="brand-mark"><img src="assets/logo.svg" width="46" height="46" alt=""></span><span>TourLingo<small>Travel with confidence</small></span></a>
         <div class="auth-showcase-copy">
             <span class="eyebrow light-eyebrow">Welcome back</span>
             <h1>Your journey speaks every language.</h1>
