@@ -29,6 +29,8 @@ if($status<200||$status>=300){error_log('Google Cloud Translation HTTP '.$status
 $item=(json_decode((string)$response,true)['data']['translations'][0]??[]);$translation=$item['translatedText']??null;
 if(!is_string($translation)||$translation==='')translation_reply(['ok'=>false,'message'=>'Translation is temporarily unavailable.'],502);
 $reverse=array_flip($codes);$detected=$from==='auto'?($reverse[(string)($item['detectedSourceLanguage']??'')]??(string)($item['detectedSourceLanguage']??'unknown')):$from;
+// Enrich the translation with local terms and curated phrases from the database.
+// This optional lookup can fail without discarding the provider's translation.
 $alternatives=[];$suggestions=[];$matchedTerms=[];
 try{
  $db=database();

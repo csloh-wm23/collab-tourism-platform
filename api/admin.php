@@ -165,6 +165,8 @@ try {
         reply(['ok' => false, 'message' => 'Invalid decision.'], 422);
     }
 
+    // Lock the application during review so concurrent decisions cannot overwrite each other.
+    // Business status, owner status and the audit record are saved as one transaction.
     $db->beginTransaction();
     $stmt = $db->prepare('SELECT owner_user_id, verification_status FROM businesses WHERE id=? FOR UPDATE');
     $stmt->execute([$id]);

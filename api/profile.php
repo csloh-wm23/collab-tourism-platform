@@ -36,6 +36,8 @@ if ($method !== 'POST') {
     profile_reply(['ok' => false, 'message' => 'Method not allowed.'], 405);
 }
 
+// Pictures arrive as multipart form data, while account/password changes use JSON.
+// Both paths verify CSRF and use the authenticated user's ID, not a submitted owner ID.
 $contentType = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
 if (str_starts_with($contentType, 'multipart/form-data')) {
     if (!verify_csrf($_POST['csrf'] ?? null)) {
@@ -58,6 +60,7 @@ if (str_starts_with($contentType, 'multipart/form-data')) {
         profile_reply(['ok' => false, 'message' => 'Profile pictures must be 2 MB or smaller.'], 422);
     }
 
+    // Validate the actual file type and dimensions, not just the filename extension.
     $temporaryPath = (string)($picture['tmp_name'] ?? '');
     $mimeType = $temporaryPath !== '' ? (new finfo(FILEINFO_MIME_TYPE))->file($temporaryPath) : false;
     $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
@@ -75,6 +78,7 @@ if (str_starts_with($contentType, 'multipart/form-data')) {
     }
 
     $userId = (int)$user['id'];
+    // Random filenames avoid collisions; the database stores only the relative image path.
     $filename = 'user-' . $userId . '-' . bin2hex(random_bytes(10)) . '.' . $extensions[$mimeType];
     $destination = $uploadDirectory . '/' . $filename;
     if (!move_uploaded_file($temporaryPath, $destination)) {
@@ -146,6 +150,7 @@ try {
         ]]);
     }
 
+    // Verify the existing password before storing a new password hash.
     if ($action === 'change_password') {
         $currentPassword = (string)($input['current_password'] ?? '');
         $newPassword = (string)($input['new_password'] ?? '');

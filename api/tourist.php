@@ -3,6 +3,7 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
 require_once __DIR__.'/../config/auth.php';require_once __DIR__.'/../config/validation.php';
 function tourist_reply(array $b,int $s=200):never{http_response_code($s);echo json_encode($b,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
+// Only active tourists can read/change this profile. Every query is scoped to their session ID.
 $user=current_user();if(!$user||($user['role']??'')!=='tourist'||($user['status']??'')!=='active')tourist_reply(['ok'=>false,'message'=>'Active tourist account required.'],403);
 $db=database();$uid=(int)$user['id'];$method=$_SERVER['REQUEST_METHOD']??'GET';
 try{
@@ -14,6 +15,8 @@ try{
   tourist_reply(['ok'=>true,'profile'=>$profile,'packs'=>$packs->fetchAll(),'recommendations'=>$recommend->fetchAll()]);
  }
  $input=json_decode((string)file_get_contents('php://input'),true);if(!is_array($input)||!verify_csrf($input['csrf']??null))tourist_reply(['ok'=>false,'message'=>'Invalid request token.'],403);
+ // Journey deletion removes preferences/saved data, not the login account.
+ // The transaction keeps the related cleanup operations together.
  if($method==='DELETE'){$db->beginTransaction();$db->prepare('DELETE FROM consent_records WHERE user_id=?')->execute([$uid]);$db->prepare('DELETE FROM records WHERE user_id=?')->execute([$uid]);$db->prepare('DELETE FROM user_destination_packs WHERE user_id=?')->execute([$uid]);$db->prepare('DELETE FROM user_saved_packs WHERE user_id=?')->execute([$uid]);$db->prepare('UPDATE translation_reports SET reporter_user_id=NULL WHERE reporter_user_id=?')->execute([$uid]);$db->prepare('UPDATE users SET preferred_language="en" WHERE id=?')->execute([$uid]);$db->prepare('UPDATE tourist_profiles SET accessibility_notes=NULL,dietary_notes=NULL,allergy_notes=NULL,emergency_contact=NULL,emergency_details=NULL,default_destination=NULL,large_text=0,voice_playback=0 WHERE user_id=?')->execute([$uid]);$db->commit();tourist_reply(['ok'=>true,'message'=>'Your profile preferences and saved journey data were deleted.']);}
  if($method!=='POST')tourist_reply(['ok'=>false,'message'=>'Method not allowed.'],405);
  $action=(string)($input['action']??'save_profile');

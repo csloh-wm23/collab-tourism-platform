@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/env.php';
 
+// Reuse one PDO connection per request. utf8mb4 supports multilingual text.
+// Prepared statements separate bound values from SQL; exceptions allow rollback.
 function database(): PDO
 {
     static $connection = null;

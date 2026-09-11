@@ -34,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             $db = database();
+            // Create the user and their role-specific record together: both succeed or roll back.
+            // Public registration allows only tourist/business roles; businesses start pending.
             $db->beginTransaction();
             $status = $values['role'] === 'business' ? 'pending' : 'active';
             $stmt = $db->prepare('INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)');

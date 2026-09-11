@@ -15,6 +15,9 @@ function assistance_translate_batch(array $texts,string $source,string $target):
     if(count($translated)!==count($texts))throw new RuntimeException('The selected language pack was incomplete.');
     return $translated;
 }
+// Look up the requested destination/situation/language pack. If absent, use the
+// Malaysia Malay pack and translate it when needed. Return the resolved destination
+// so the interface can show that fallback rather than imply destination-specific data.
 try {
     $scenario=clean_scenario($_GET['scenario']??'restaurant');
     $destination=clean_text($_GET['destination']??'Malaysia',120,true);

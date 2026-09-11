@@ -3,6 +3,8 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
 require_once __DIR__.'/../config/auth.php';require_once __DIR__.'/../config/validation.php';
 function business_reply(array $b,int $s=200):never{http_response_code($s);echo json_encode($b,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
+// Resolve the owner from the session. Content updates are scoped to that business.
+// Pending businesses can resubmit; studio changes require approved, active status.
 try{
  $user=current_user();if(!$user||($user['role']??'')!=='business')business_reply(['ok'=>false,'message'=>'Business account access required.'],403);
  $db=database();$stmt=$db->prepare('SELECT * FROM businesses WHERE owner_user_id=? LIMIT 1');$stmt->execute([(int)$user['id']]);$business=$stmt->fetch();

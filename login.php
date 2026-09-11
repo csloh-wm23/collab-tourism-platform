@@ -11,6 +11,8 @@ if (is_logged_in()) {
 }
 
 $error = '';
+// Process the submitted form on the server. CSRF checks tie the submission to the session.
+// password_verify compares against a stored hash; failed attempts can temporarily lock access.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf'] ?? null)) {
         $error = 'Your form session expired. Please try again.';
@@ -46,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $db->prepare('UPDATE users SET failed_login_attempts=0, locked_until=NULL WHERE id=?')->execute([(int)$user['id']]);
                 unset($user['password_hash'], $user['failed_login_attempts'], $user['locked_until']);
+                // Replace the session ID after authentication to reduce session-fixation risk.
                 session_regenerate_id(true);
                 $_SESSION['user'] = $user;
                 header('Location: index.php');

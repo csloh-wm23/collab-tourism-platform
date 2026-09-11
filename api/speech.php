@@ -39,6 +39,8 @@ if (!is_array($input)) {
 $text = trim((string)($input['text'] ?? ''));
 $lang = (string)($input['language'] ?? '');
 
+// Map the application's five language codes to provider voice identifiers.
+// This endpoint produces spoken output; microphone recognition happens in app.js.
 $voices = [
     'en' => ['languageCode' => 'en-US', 'name' => 'en-US-Standard-C'],
     'ms' => ['languageCode' => 'ms-MY', 'name' => 'ms-MY-Standard-A'],
@@ -107,6 +109,7 @@ if (!is_string($encodedAudio) || $encodedAudio === '') {
     error_log('Google Cloud Text-to-Speech returned an unexpected response.');
     fail_json('Speech generation is temporarily unavailable.', 502);
 }
+// Google returns base64 inside JSON. Decode it so the browser receives playable MP3 bytes.
 $audio = base64_decode($encodedAudio, true);
 if ($audio === false || $audio === '') {
     error_log('Google Cloud Text-to-Speech returned invalid audio data.');
