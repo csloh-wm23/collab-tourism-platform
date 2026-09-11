@@ -188,7 +188,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                                 </button>
                                 <div id="voiceActive" class="voice-active" hidden>
                                     <span class="recording-pulse" aria-hidden="true"></span>
-                                    <span class="voice-live-copy" aria-live="polite"><strong>Speaking…</strong><small>Keep talking until you are finished</small></span>
+                                    <span class="voice-live-copy" aria-live="polite"><strong>Listening…</strong><small>Speak now. Keep talking until you are finished</small></span>
                                     <span class="voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
                                     <button id="finishSpeaking" class="voice-finish" type="button">Finish speaking</button>
                                 </div>
