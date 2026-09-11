@@ -12,50 +12,66 @@ function reply(array $body, int $status = 200): never
     header('Content-Type: application/json; charset=utf-8');
     http_response_code($status);
     echo json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
+    exit();
 }
 
 function admin_dataset(PDO $db): array
 {
-    $pending = $db->query(
-        "SELECT b.id,b.name,b.category,b.address,u.full_name,u.email
+    $pending = $db
+        ->query(
+            "SELECT b.id,b.name,b.category,b.address,u.full_name,u.email
          FROM businesses b
          JOIN users u ON u.id=b.owner_user_id
          WHERE b.verification_status='pending'
-         ORDER BY b.created_at"
-    )->fetchAll();
+         ORDER BY b.created_at",
+        )
+        ->fetchAll();
 
     $stats = [
-        'users' => (int)$db->query("SELECT COUNT(*) FROM users WHERE status='active'")->fetchColumn(),
-        'businesses' => (int)$db->query("SELECT COUNT(*) FROM businesses WHERE verification_status='approved'")->fetchColumn(),
-        'pending' => (int)$db->query("SELECT COUNT(*) FROM businesses WHERE verification_status='pending'")->fetchColumn(),
-        'translations' => (int)$db->query("SELECT COUNT(*) FROM records WHERE record_type='translation'")->fetchColumn(),
+        'users' => (int) $db
+            ->query("SELECT COUNT(*) FROM users WHERE status='active'")
+            ->fetchColumn(),
+        'businesses' => (int) $db
+            ->query("SELECT COUNT(*) FROM businesses WHERE verification_status='approved'")
+            ->fetchColumn(),
+        'pending' => (int) $db
+            ->query("SELECT COUNT(*) FROM businesses WHERE verification_status='pending'")
+            ->fetchColumn(),
+        'translations' => (int) $db
+            ->query("SELECT COUNT(*) FROM records WHERE record_type='translation'")
+            ->fetchColumn(),
     ];
 
-    $usersByRole = $db->query(
-        "SELECT role, COUNT(*) AS total,
+    $usersByRole = $db
+        ->query(
+            "SELECT role, COUNT(*) AS total,
                 SUM(status='active') AS active,
                 SUM(status='pending') AS pending,
                 SUM(status='suspended') AS suspended
          FROM users
          GROUP BY role
-         ORDER BY FIELD(role,'tourist','business','editor','admin')"
-    )->fetchAll();
+         ORDER BY FIELD(role,'tourist','business','editor','admin')",
+        )
+        ->fetchAll();
 
-    $businessesByStatus = $db->query(
-        "SELECT verification_status AS status, COUNT(*) AS total
+    $businessesByStatus = $db
+        ->query(
+            "SELECT verification_status AS status, COUNT(*) AS total
          FROM businesses
          GROUP BY verification_status
-         ORDER BY FIELD(verification_status,'approved','pending','rejected')"
-    )->fetchAll();
+         ORDER BY FIELD(verification_status,'approved','pending','rejected')",
+        )
+        ->fetchAll();
 
-    $recentActivity = $db->query(
-        "SELECT a.created_at, COALESCE(u.full_name,'System') AS administrator, a.action, a.area
+    $recentActivity = $db
+        ->query(
+            "SELECT a.created_at, COALESCE(u.full_name,'System') AS administrator, a.action, a.area
          FROM audit_logs a
          LEFT JOIN users u ON u.id=a.user_id
          ORDER BY a.created_at DESC
-         LIMIT 20"
-    )->fetchAll();
+         LIMIT 20",
+        )
+        ->fetchAll();
 
     return [
         'pending' => $pending,
@@ -92,14 +108,20 @@ function export_admin_csv(array $data): never
     fputcsv($output, ['User accounts by role']);
     fputcsv($output, ['Role', 'Active', 'Pending', 'Suspended', 'Total']);
     foreach ($data['users_by_role'] as $row) {
-        fputcsv($output, [ucfirst((string)$row['role']), $row['active'], $row['pending'], $row['suspended'], $row['total']]);
+        fputcsv($output, [
+            ucfirst((string) $row['role']),
+            $row['active'],
+            $row['pending'],
+            $row['suspended'],
+            $row['total'],
+        ]);
     }
 
     fputcsv($output, []);
     fputcsv($output, ['Businesses by review status']);
     fputcsv($output, ['Status', 'Total']);
     foreach ($data['businesses_by_status'] as $row) {
-        fputcsv($output, [ucfirst((string)$row['status']), $row['total']]);
+        fputcsv($output, [ucfirst((string) $row['status']), $row['total']]);
     }
 
     fputcsv($output, []);
@@ -116,7 +138,7 @@ function export_admin_csv(array $data): never
         fputcsv($output, [$row['created_at'], $row['administrator'], $row['action'], $row['area']]);
     }
     fclose($output);
-    exit;
+    exit();
 }
 
 function export_admin_pdf(array $data): never
@@ -127,7 +149,7 @@ function export_admin_pdf(array $data): never
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Content-Length: ' . strlen($pdf));
     echo $pdf;
-    exit;
+    exit();
 }
 
 $admin = current_user();
@@ -140,7 +162,7 @@ try {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     if ($method === 'GET') {
         $data = admin_dataset($db);
-        $format = (string)($_GET['format'] ?? '');
+        $format = (string) ($_GET['format'] ?? '');
         if ($format === 'csv') {
             export_admin_csv($data);
         }
@@ -155,12 +177,12 @@ try {
         reply(['ok' => false, 'message' => 'Method not allowed.'], 405);
     }
 
-    $input = json_decode((string)file_get_contents('php://input'), true);
+    $input = json_decode((string) file_get_contents('php://input'), true);
     if (!is_array($input) || !verify_csrf($input['csrf'] ?? null)) {
         reply(['ok' => false, 'message' => 'Invalid request token.'], 403);
     }
-    $id = (int)($input['business_id'] ?? 0);
-    $decision = (string)($input['decision'] ?? '');
+    $id = (int) ($input['business_id'] ?? 0);
+    $decision = (string) ($input['decision'] ?? '');
     if (!$id || !in_array($decision, ['approve', 'reject'], true)) {
         reply(['ok' => false, 'message' => 'Invalid decision.'], 422);
     }
@@ -168,10 +190,12 @@ try {
     // Lock the application during review so concurrent decisions cannot overwrite each other.
     // Business status, owner status and the audit record are saved as one transaction.
     $db->beginTransaction();
-    $stmt = $db->prepare('SELECT owner_user_id, verification_status FROM businesses WHERE id=? FOR UPDATE');
+    $stmt = $db->prepare(
+        'SELECT owner_user_id, verification_status FROM businesses WHERE id=? FOR UPDATE',
+    );
     $stmt->execute([$id]);
     $registration = $stmt->fetch();
-    $owner = (int)($registration['owner_user_id'] ?? 0);
+    $owner = (int) ($registration['owner_user_id'] ?? 0);
     if (!$owner) {
         $db->rollBack();
         reply(['ok' => false, 'message' => 'Business not found.'], 404);
@@ -183,10 +207,17 @@ try {
 
     $businessStatus = $decision === 'approve' ? 'approved' : 'rejected';
     $userStatus = $decision === 'approve' ? 'active' : 'pending';
-    $db->prepare('UPDATE businesses SET verification_status=? WHERE id=?')->execute([$businessStatus, $id]);
+    $db->prepare('UPDATE businesses SET verification_status=? WHERE id=?')->execute([
+        $businessStatus,
+        $id,
+    ]);
     $db->prepare('UPDATE users SET status=? WHERE id=?')->execute([$userStatus, $owner]);
-    $db->prepare('INSERT INTO audit_logs (user_id,action,area,details) VALUES (?,?,?,?)')
-        ->execute([(int)$admin['id'], 'Business registration ' . $decision, 'Registrations', json_encode(['business_id' => $id, 'decision' => $decision])]);
+    $db->prepare('INSERT INTO audit_logs (user_id,action,area,details) VALUES (?,?,?,?)')->execute([
+        (int) $admin['id'],
+        'Business registration ' . $decision,
+        'Registrations',
+        json_encode(['business_id' => $id, 'decision' => $decision]),
+    ]);
     $db->commit();
     reply(['ok' => true]);
 } catch (Throwable $exception) {

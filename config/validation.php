@@ -3,18 +3,24 @@ declare(strict_types=1);
 
 function supported_languages(bool $includeAuto = false): array
 {
-    $languages = ['en' => 'English', 'ms' => 'Bahasa Malaysia', 'zh' => 'Mandarin Chinese', 'id' => 'Indonesian', 'th' => 'Thai'];
+    $languages = [
+        'en' => 'English',
+        'ms' => 'Bahasa Malaysia',
+        'zh' => 'Mandarin Chinese',
+        'id' => 'Indonesian',
+        'th' => 'Thai',
+    ];
     return $includeAuto ? ['auto' => 'Automatic detection'] + $languages : $languages;
 }
 
 function supported_scenarios(): array
 {
-    return ['restaurant','hotel','transport','shopping','medical','emergency','culture'];
+    return ['restaurant', 'hotel', 'transport', 'shopping', 'medical', 'emergency', 'culture'];
 }
 
 function clean_text(mixed $value, int $maximum, bool $required = false): string
 {
-    $text = trim((string)$value);
+    $text = trim((string) $value);
     if ($required && $text === '') {
         throw new InvalidArgumentException('A required field is empty.');
     }
@@ -26,7 +32,7 @@ function clean_text(mixed $value, int $maximum, bool $required = false): string
 
 function clean_language(mixed $value, bool $allowAuto = false): string
 {
-    $language = (string)$value;
+    $language = (string) $value;
     if (!array_key_exists($language, supported_languages($allowAuto))) {
         throw new InvalidArgumentException('Unsupported language.');
     }
@@ -35,7 +41,7 @@ function clean_language(mixed $value, bool $allowAuto = false): string
 
 function clean_scenario(mixed $value): string
 {
-    $scenario = (string)$value;
+    $scenario = (string) $value;
     if (!in_array($scenario, supported_scenarios(), true)) {
         throw new InvalidArgumentException('Unsupported tourism scenario.');
     }
@@ -44,9 +50,15 @@ function clean_scenario(mixed $value): string
 
 function clean_confidence(mixed $value): ?float
 {
-    if ($value === null || $value === '') return null;
-    if (!is_numeric($value)) throw new InvalidArgumentException('Invalid confidence score.');
-    $confidence = (float)$value;
-    if ($confidence < 0 || $confidence > 1) throw new InvalidArgumentException('Invalid confidence score.');
+    if ($value === null || $value === '') {
+        return null;
+    }
+    if (!is_numeric($value)) {
+        throw new InvalidArgumentException('Invalid confidence score.');
+    }
+    $confidence = (float) $value;
+    if ($confidence < 0 || $confidence > 1) {
+        throw new InvalidArgumentException('Invalid confidence score.');
+    }
     return $confidence;
 }

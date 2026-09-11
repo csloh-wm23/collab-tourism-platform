@@ -27,15 +27,15 @@ final class AdminPdfDocument
     public function summary(array $stats): void
     {
         $items = [
-            ['Active users', (string)$stats['users']],
-            ['Approved businesses', (string)$stats['businesses']],
-            ['Pending review', (string)$stats['pending']],
-            ['Translations', (string)$stats['translations']],
+            ['Active users', (string) $stats['users']],
+            ['Approved businesses', (string) $stats['businesses']],
+            ['Pending review', (string) $stats['pending']],
+            ['Translations', (string) $stats['translations']],
         ];
         $gap = 8.0;
-        $width = (self::WIDTH - (self::MARGIN * 2) - ($gap * 3)) / 4;
+        $width = (self::WIDTH - self::MARGIN * 2 - $gap * 3) / 4;
         foreach ($items as $index => [$label, $value]) {
-            $x = self::MARGIN + (($width + $gap) * $index);
+            $x = self::MARGIN + ($width + $gap) * $index;
             $this->rect($x, $this->y, $width, 60, '0.965 0.985 0.987');
             $this->text($x + 12, $this->y + 26, 18, $value, true, '0.031 0.490 0.427');
             $this->text($x + 12, $this->y + 45, 8, $label, false, '0.25 0.35 0.39');
@@ -47,7 +47,14 @@ final class AdminPdfDocument
     {
         $this->ensureSpace(38);
         $this->text(self::MARGIN, $this->y + 13, 13, $title, true, '0.028 0.118 0.165');
-        $this->line(self::MARGIN, $this->y + 22, self::WIDTH - self::MARGIN, $this->y + 22, '0.05 0.68 0.60', 1.2);
+        $this->line(
+            self::MARGIN,
+            $this->y + 22,
+            self::WIDTH - self::MARGIN,
+            $this->y + 22,
+            '0.05 0.68 0.60',
+            1.2,
+        );
         $this->y += 32;
     }
 
@@ -56,7 +63,14 @@ final class AdminPdfDocument
     {
         if ($rows === []) {
             $this->ensureSpace(30);
-            $this->text(self::MARGIN + 10, $this->y + 18, 9, 'No records available.', false, '0.36 0.46 0.50');
+            $this->text(
+                self::MARGIN + 10,
+                $this->y + 18,
+                9,
+                'No records available.',
+                false,
+                '0.36 0.46 0.50',
+            );
             $this->y += 30;
             return;
         }
@@ -66,7 +80,14 @@ final class AdminPdfDocument
             $this->rect(self::MARGIN, $this->y, array_sum($widths), 24, '0.890 0.970 0.960');
             $x = self::MARGIN;
             foreach ($headers as $index => $header) {
-                $this->text($x + 7, $this->y + 16, 7.5, strtoupper($header), true, '0.031 0.365 0.337');
+                $this->text(
+                    $x + 7,
+                    $this->y + 16,
+                    7.5,
+                    strtoupper($header),
+                    true,
+                    '0.031 0.365 0.337',
+                );
                 $x += $widths[$index];
             }
             $this->y += 24;
@@ -78,11 +99,18 @@ final class AdminPdfDocument
                 $this->addPage(true);
                 $drawHeader();
             }
-            $this->line(self::MARGIN, $this->y + 24, self::MARGIN + array_sum($widths), $this->y + 24, '0.86 0.91 0.92', .6);
+            $this->line(
+                self::MARGIN,
+                $this->y + 24,
+                self::MARGIN + array_sum($widths),
+                $this->y + 24,
+                '0.86 0.91 0.92',
+                0.6,
+            );
             $x = self::MARGIN;
             foreach ($widths as $index => $width) {
-                $maxCharacters = max(5, (int)floor(($width - 14) / 4.6));
-                $value = $this->shorten((string)($row[$index] ?? ''), $maxCharacters);
+                $maxCharacters = max(5, (int) floor(($width - 14) / 4.6));
+                $value = $this->shorten((string) ($row[$index] ?? ''), $maxCharacters);
                 $this->text($x + 7, $this->y + 16, 8.5, $value, false, '0.10 0.20 0.24');
                 $x += $width;
             }
@@ -101,16 +129,35 @@ final class AdminPdfDocument
         ];
         $kids = [];
         foreach ($this->pages as $index => $commands) {
-            $pageId = 5 + ($index * 2);
+            $pageId = 5 + $index * 2;
             $contentId = $pageId + 1;
             $kids[] = $pageId . ' 0 R';
-            $footer = $this->textCommand(42, 817, 8, 'TourLingo administration report', false, '0.42 0.50 0.53');
-            $footer .= $this->textCommand(515, 817, 8, 'Page ' . ($index + 1), false, '0.42 0.50 0.53');
+            $footer = $this->textCommand(
+                42,
+                817,
+                8,
+                'TourLingo administration report',
+                false,
+                '0.42 0.50 0.53',
+            );
+            $footer .= $this->textCommand(
+                515,
+                817,
+                8,
+                'Page ' . ($index + 1),
+                false,
+                '0.42 0.50 0.53',
+            );
             $stream = $commands . $footer;
-            $objects[$pageId] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' . $contentId . ' 0 R >>';
-            $objects[$contentId] = "<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "endstream";
+            $objects[$pageId] =
+                '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' .
+                $contentId .
+                ' 0 R >>';
+            $objects[$contentId] =
+                '<< /Length ' . strlen($stream) . " >>\nstream\n" . $stream . 'endstream';
         }
-        $objects[2] = '<< /Type /Pages /Kids [' . implode(' ', $kids) . '] /Count ' . count($kids) . ' >>';
+        $objects[2] =
+            '<< /Type /Pages /Kids [' . implode(' ', $kids) . '] /Count ' . count($kids) . ' >>';
         ksort($objects);
 
         $pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
@@ -124,7 +171,12 @@ final class AdminPdfDocument
         for ($id = 1; $id <= count($objects); $id++) {
             $pdf .= sprintf("%010d 00000 n \n", $offsets[$id]);
         }
-        $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root 1 0 R >>\nstartxref\n" . $xref . "\n%%EOF";
+        $pdf .=
+            "trailer\n<< /Size " .
+            (count($objects) + 1) .
+            " /Root 1 0 R >>\nstartxref\n" .
+            $xref .
+            "\n%%EOF";
         return $pdf;
     }
 
@@ -156,23 +208,43 @@ final class AdminPdfDocument
         $this->append("q {$fill} rg {$x} {$bottom} {$width} {$height} re f Q\n");
     }
 
-    private function line(float $x1, float $top1, float $x2, float $top2, string $stroke, float $width): void
-    {
+    private function line(
+        float $x1,
+        float $top1,
+        float $x2,
+        float $top2,
+        string $stroke,
+        float $width,
+    ): void {
         $y1 = self::HEIGHT - $top1;
         $y2 = self::HEIGHT - $top2;
         $this->append("q {$stroke} RG {$width} w {$x1} {$y1} m {$x2} {$y2} l S Q\n");
     }
 
-    private function text(float $x, float $top, float $size, string $value, bool $bold, string $fill): void
-    {
+    private function text(
+        float $x,
+        float $top,
+        float $size,
+        string $value,
+        bool $bold,
+        string $fill,
+    ): void {
         $this->append($this->textCommand($x, $top, $size, $value, $bold, $fill));
     }
 
-    private function textCommand(float $x, float $top, float $size, string $value, bool $bold, string $fill): string
-    {
+    private function textCommand(
+        float $x,
+        float $top,
+        float $size,
+        string $value,
+        bool $bold,
+        string $fill,
+    ): string {
         $font = $bold ? 'F2' : 'F1';
         $baseline = self::HEIGHT - $top;
-        return "BT /{$font} {$size} Tf {$fill} rg 1 0 0 1 {$x} {$baseline} Tm (" . $this->escape($value) . ") Tj ET\n";
+        return "BT /{$font} {$size} Tf {$fill} rg 1 0 0 1 {$x} {$baseline} Tm (" .
+            $this->escape($value) .
+            ") Tj ET\n";
     }
 
     private function append(string $command): void
@@ -192,31 +264,62 @@ final class AdminPdfDocument
     private function shorten(string $value, int $limit): string
     {
         $value = trim(preg_replace('/\s+/', ' ', $value) ?? '');
-        return mb_strlen($value) <= $limit ? $value : rtrim(mb_substr($value, 0, max(1, $limit - 3))) . '...';
+        return mb_strlen($value) <= $limit
+            ? $value
+            : rtrim(mb_substr($value, 0, max(1, $limit - 3))) . '...';
     }
 }
 
 function render_admin_pdf(array $data): string
 {
     $pdf = new AdminPdfDocument();
-    $generated = (new DateTimeImmutable((string)$data['generated_at']))->format('j M Y, g:i a');
+    $generated = (new DateTimeImmutable((string) $data['generated_at']))->format('j M Y, g:i a');
     $pdf->heading($generated);
     $pdf->summary($data['stats']);
 
     $pdf->section('User accounts by role');
-    $userRows = array_map(static fn(array $row): array => [ucfirst((string)$row['role']), $row['active'], $row['pending'], $row['suspended'], $row['total']], $data['users_by_role']);
-    $pdf->table(['Role','Active','Pending','Suspended','Total'], $userRows, [151,90,90,90,90]);
+    $userRows = array_map(
+        static fn(array $row): array => [
+            ucfirst((string) $row['role']),
+            $row['active'],
+            $row['pending'],
+            $row['suspended'],
+            $row['total'],
+        ],
+        $data['users_by_role'],
+    );
+    $pdf->table(['Role', 'Active', 'Pending', 'Suspended', 'Total'], $userRows, [
+        151,
+        90,
+        90,
+        90,
+        90,
+    ]);
 
     $pdf->section('Businesses by review status');
-    $businessRows = array_map(static fn(array $row): array => [ucfirst((string)$row['status']), $row['total']], $data['businesses_by_status']);
-    $pdf->table(['Status','Businesses'], $businessRows, [340,171]);
+    $businessRows = array_map(
+        static fn(array $row): array => [ucfirst((string) $row['status']), $row['total']],
+        $data['businesses_by_status'],
+    );
+    $pdf->table(['Status', 'Businesses'], $businessRows, [340, 171]);
 
     $pdf->section('Pending business registrations');
-    $pendingRows = array_map(static fn(array $row): array => [$row['name'], $row['category'], $row['email']], $data['pending']);
-    $pdf->table(['Business','Category','Owner email'], $pendingRows, [185,125,201]);
+    $pendingRows = array_map(
+        static fn(array $row): array => [$row['name'], $row['category'], $row['email']],
+        $data['pending'],
+    );
+    $pdf->table(['Business', 'Category', 'Owner email'], $pendingRows, [185, 125, 201]);
 
     $pdf->section('Recent administrative activity');
-    $activityRows = array_map(static fn(array $row): array => [$row['created_at'], $row['administrator'], $row['action'], $row['area']], $data['recent_activity']);
-    $pdf->table(['Date','Administrator','Action','Area'], $activityRows, [112,130,169,100]);
+    $activityRows = array_map(
+        static fn(array $row): array => [
+            $row['created_at'],
+            $row['administrator'],
+            $row['action'],
+            $row['area'],
+        ],
+        $data['recent_activity'],
+    );
+    $pdf->table(['Date', 'Administrator', 'Action', 'Area'], $activityRows, [112, 130, 169, 100]);
     return $pdf->output();
 }

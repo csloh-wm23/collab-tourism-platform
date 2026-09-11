@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 $root=dirname(__DIR__);$failures=[];$checks=0;
 function check(bool $condition,string $message):void{global $failures,$checks;$checks++;if(!$condition)$failures[]=$message;}
+// Source-marker checks should ignore indentation and line wrapping, not require minified code.
+function contains_code(string $source,string $expected):bool {
+    return str_contains(preg_replace('/\s+/', '', $source), preg_replace('/\s+/', '', $expected));
+}
 require_once $root.'/config/validation.php';
 require_once $root.'/config/security.php';
 
@@ -24,13 +28,13 @@ foreach(['Automatic detection','Two-way conversation','Report unclear','Indonesi
 check(str_contains($all,'dark-mode')&&str_contains($all,'jomcommunicate_theme'),'Persistent dark mode is missing.');
 check(str_contains($all,'topbar-title'),'Header title/date spacing class is missing.');
 check(str_contains($all,'sidebarBackdrop')&&str_contains($all,'closeMenuButton'),'Dismissible navigation controls are missing.');
-check(str_contains($all,'.sidebar-collapsed .menu-button')&&preg_match('/transition:[^;}]*left\s+\.22s\s+ease/',$all),'Sliding persistent hamburger navigation is missing.');
+check(str_contains($all,'.sidebar-collapsed .menu-button')&&preg_match('/transition:[^;}]*left\s+0?\.22s\s+ease/',$all),'Sliding persistent hamburger navigation is missing.');
 check(str_contains($all,"event.key==='Escape'")&&str_contains($all,"setMenu(false)"),'Keyboard and programmatic navigation dismissal are missing.');
 check(str_contains($all,"addEventListener('hashchange'")&&str_contains($all,"history.pushState"),'Hash and browser-history navigation handling is missing.');
 check(!str_contains($all,"'confidence'=>0.92")&&!str_contains($all,'Number(data.confidence||0)'),'A fabricated translation confidence remains.');
 check(str_contains($all,'not_provided_by_google')&&str_contains($all,'confidenceLabel'),'Truthful translation-confidence handling is missing.');
-check(str_contains($all,'twoWayLanguages')&&str_contains($all,"source==='auto'?detected:source"),'Automatic-source two-way switching is not covered.');
-check(str_contains($all,'prepareNextTwoWayTurn(current,from)')&&str_contains($all,"direction={source:current.to,target:current.from}"),'Two-way mode must switch the next speaker back to the previous language.');
+check(str_contains($all,'twoWayLanguages')&&contains_code($all,"source==='auto'?detected:source"),'Automatic-source two-way switching is not covered.');
+check(contains_code($all,'prepareNextTwoWayTurn(current,from)')&&contains_code($all,"direction={source:current.to,target:current.from}"),'Two-way mode must switch the next speaker back to the previous language.');
 check(str_contains($all,'speechRecognitionLanguage')&&str_contains($all,'recoverableSpeechError'),'Continuous automatic-language voice input is not covered.');
 check(str_contains($all,'guest_preferences')&&str_contains($all,"consent_type='anonymous_analytics'"),'Server-side analytics consent verification is missing.');
 check(str_contains($all,'source_hash')&&str_contains($all,'VALUES(NULL,NULL,NULL'),'Anonymous issue reporting is incomplete.');
@@ -45,20 +49,20 @@ check(str_contains($css,'.menu-button span')&&str_contains($css,'@media (max-wid
 check(str_contains($index,'TourLingo')&&str_contains($index,'Profile & settings'),'TourLingo branding or profile management is missing.');
 check(!str_contains($index,'id="communicationScenario"'),'The translator must not expose a tourism-scenario selector.');
 check(str_contains($index,"if (\$user && \$role === 'tourist')")&&str_contains($index,"nav_button('communication', 'Translate', 'translate', !\$user)"),'Guest navigation must be limited to the translator.');
-check(str_contains(file_get_contents($root.'/assets/js/app.js'),"defaultPage=window.JOM.authenticated?'home':'communication'")&&str_contains(file_get_contents($root.'/assets/js/app.js'),"translationScenario='culture'"),'Guest routing or neutral translation context is missing.');
+check(contains_code(file_get_contents($root.'/assets/js/app.js'),"defaultPage=window.JOM.authenticated?'home':'communication'")&&contains_code(file_get_contents($root.'/assets/js/app.js'),"translationScenario='culture'"),'Guest routing or neutral translation context is missing.');
 check(str_contains($index,'id="voiceActive"')&&str_contains($index,'id="finishSpeaking"')&&str_contains($index,'Start speaking'),'Visible start and finish controls for microphone input are missing.');
 check(str_contains($index,'aria-label="Message to translate"'),'The translator message field needs an accessible name.');
 check(str_contains($index,'role="dialog"')&&str_contains($index,'aria-modal="true"'),'The large-screen message must be exposed as a modal dialog.');
 $appJs=file_get_contents($root.'/assets/js/app.js');
-check(str_contains($appJs,'r.continuous=true')&&str_contains($appJs,'r.interimResults=true')&&str_contains($appJs,"addEventListener('click',finishRecognition)"),'Continuous microphone capture must remain active until the user finishes it.');
+check(contains_code($appJs,'r.continuous=true')&&contains_code($appJs,'r.interimResults=true')&&contains_code($appJs,"addEventListener('click',finishRecognition)"),'Continuous microphone capture must remain active until the user finishes it.');
 check(str_contains($appJs,'Delete saved item')&&str_contains($appJs,'Add to favourites'),'Saved-record icon controls need accessible labels.');
 check(substr_count($all,'styles.css?v=')>=4&&str_contains($index,'width="19" height="19"'),'Updated interface styles must bypass stale browser caches and constrain the microphone icon.');
 check(str_contains($index,'id="largeMessage" class="secondary"'),'Large-screen message action must retain the neutral button style.');
 check(str_contains($css,'.emergency-overlay')&&str_contains($css,'background: #000;'),'Large-screen message display must use a black background.');
-check(str_contains($css,'[hidden] { display: none !important; }'),'Hidden loading and conditional content must not be forced visible by component CSS.');
+check(contains_code($css,'[hidden] { display: none !important; }'),'Hidden loading and conditional content must not be forced visible by component CSS.');
 check(str_contains($css,'.public-business summary')&&str_contains($css,'min-height: 44px;'),'Public FAQ rows must remain large enough for touch interaction.');
-check(str_contains($css,'.swap-button { margin: 0 auto; transform: rotate(90deg); width: 44px; }'),'The mobile language-swap control must remain a full-size touch target.');
-check(str_contains($index,"\$businessStatus === 'rejected' ? 'Needs revision' : 'Under review'")&&str_contains($css,'.status-pill.rejected'),'Rejected applications need an accurate, styled status badge.');
+check(contains_code($css,'.swap-button { margin: 0 auto; transform: rotate(90deg); width: 44px; }'),'The mobile language-swap control must remain a full-size touch target.');
+check(contains_code($index,"\$businessStatus === 'rejected' ? 'Needs revision' : 'Under review'")&&str_contains($css,'.status-pill.rejected'),'Rejected applications need an accurate, styled status badge.');
 $businessPage=file_get_contents($root.'/business.php');
 check(str_contains($businessPage,"localStorage.getItem('jomcommunicate_theme')")&&str_contains($businessPage,'showLoadError'),'The public business page must preserve theme and recover from load errors.');
 check(str_contains($index,'exportAdminReport')&&str_contains($index,'exportAdminPdf')&&str_contains($index,'adminRoleReport')&&str_contains($index,'adminActivity'),'Administration reporting interface is missing.');

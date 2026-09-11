@@ -28,14 +28,14 @@ function current_user(): ?array
     $loaded = true;
 
     $sessionUser = $_SESSION['user'] ?? null;
-    $userId = is_array($sessionUser) ? (int)($sessionUser['id'] ?? 0) : 0;
+    $userId = is_array($sessionUser) ? (int) ($sessionUser['id'] ?? 0) : 0;
     if ($userId < 1) {
         return null;
     }
 
     try {
         $stmt = database()->prepare(
-            'SELECT id, full_name, email, role, status, preferred_language, profile_image FROM users WHERE id = ? LIMIT 1'
+            'SELECT id, full_name, email, role, status, preferred_language, profile_image FROM users WHERE id = ? LIMIT 1',
         );
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
@@ -62,7 +62,7 @@ function is_logged_in(): bool
 function has_role(string ...$roles): bool
 {
     $user = current_user();
-    return $user !== null && in_array((string)$user['role'], $roles, true);
+    return $user !== null && in_array((string) $user['role'], $roles, true);
 }
 
 function is_active_user(): bool
@@ -76,7 +76,7 @@ function csrf_token(): string
     if (empty($_SESSION['csrf'])) {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
     }
-    return (string)$_SESSION['csrf'];
+    return (string) $_SESSION['csrf'];
 }
 
 function verify_csrf(?string $token): bool
@@ -88,7 +88,7 @@ function require_login(): void
 {
     if (!is_logged_in()) {
         header('Location: login.php');
-        exit;
+        exit();
     }
 }
 
@@ -103,7 +103,9 @@ function require_role(string ...$roles): void
 
 function refresh_session_user(PDO $db, int $userId): void
 {
-    $stmt = $db->prepare('SELECT id, full_name, email, role, status, preferred_language, profile_image FROM users WHERE id = ?');
+    $stmt = $db->prepare(
+        'SELECT id, full_name, email, role, status, preferred_language, profile_image FROM users WHERE id = ?',
+    );
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
     if ($user) {

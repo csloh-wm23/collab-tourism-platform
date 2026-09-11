@@ -1,275 +1,2323 @@
-(function(){
-// FRONTEND CONTROLLER: index.php supplies the HTML and window.JOM account details.
-// Buttons call the PHP APIs below; this file updates the page from their responses.
-// UI visibility is for usability. Protected APIs must still check the session on the server.
-'use strict';
-const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
-const storageKey='jomcommunicate_records_v3',privacyKey='jomcommunicate_privacy_v3',conversationKey='tourlingo_conversation_v1',emergencyKey='tourlingo_emergency_card_v1';
-const themeKey='jomcommunicate_theme';
-const locales={en:'en-US',ms:'ms-MY',zh:'zh-CN',id:'id-ID',th:'th-TH'};
-const names={en:'English',ms:'Bahasa Malaysia',zh:'Mandarin Chinese',id:'Indonesian',th:'Thai',auto:'Automatic detection'};
-let records=[],current=null,scenarioPhrases=[],assistantResolvedDestination='Malaysia',translationScenario='culture',conversationMessages=[];
-let speechRecognition=null,speechListening=false,speechBase='',speechOriginal='',speechFinal='',speechLowestConfidence=1,speechHeard=false;
-const dictionary={
- 'en-ms':{'where is the nearest train station?':'Stesen kereta api terdekat di mana?','thank you':'Terima kasih','i need help':'Saya perlukan bantuan'},
- 'en-id':{'thank you':'Terima kasih','i need help':'Saya butuh bantuan'},
- 'en-th':{'thank you':'ขอบคุณ','i need help':'ฉันต้องการความช่วยเหลือ'},
- 'en-zh':{'thank you':'谢谢','i need help':'我需要帮助'}
-};
-// Encode dynamic text before inserting it into HTML so content is displayed as text.
-function escapeHtml(v){const d=document.createElement('div');d.textContent=String(v??'');return d.innerHTML;}
-function toast(m){const e=$('#toast');if(!e)return;e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600);}
-async function message(r,f){try{return (await r.json()).message||f;}catch(e){return f;}}
-function jsonFetch(url,options={}){return fetch(url,{headers:{'Content-Type':'application/json',Accept:'application/json',...(options.headers||{})},...options});}
-function privacy(){try{return {save_history:true,analytics:false,...JSON.parse(localStorage.getItem(privacyKey)||'{}')};}catch(e){return{save_history:true,analytics:false};}}
-function setMenu(open,{restoreFocus=false}={}){const sidebar=$('.sidebar'),button=$('#menuButton');if(!sidebar||!button)return;const drawer=window.matchMedia('(max-width: 980px)').matches;if(!drawer){sidebar.classList.remove('open');document.body.classList.remove('drawer-open');const collapsed=document.body.classList.contains('sidebar-collapsed');sidebar.setAttribute('aria-hidden',String(collapsed));button.setAttribute('aria-expanded',String(!collapsed));button.setAttribute('aria-label',collapsed?'Open navigation':'Close navigation');return;}document.body.classList.remove('sidebar-collapsed');sidebar.classList.toggle('open',open);document.body.classList.toggle('drawer-open',open);sidebar.setAttribute('aria-hidden',String(!open));button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-label',open?'Close navigation':'Open navigation');if(open)$('#closeMenuButton')?.focus();else if(restoreFocus)button.focus();}
-function setDesktopMenu(collapsed,{restoreFocus=false}={}){const sidebar=$('.sidebar'),button=$('#menuButton');document.body.classList.toggle('sidebar-collapsed',collapsed);sidebar?.setAttribute('aria-hidden',String(collapsed));button?.setAttribute('aria-expanded',String(!collapsed));button?.setAttribute('aria-label',collapsed?'Open navigation':'Close navigation');button?.setAttribute('title',collapsed?'Open navigation':'Close navigation');if(restoreFocus)button?.focus();}
-// Main navigation switches sections inside index.php rather than loading another page.
-// The URL hash allows the browser to return to a particular section.
-function showPage(id,{updateHash=true}={}){const page=document.getElementById(id);if(!page?.classList.contains('page'))return;$$('.page').forEach(p=>p.classList.toggle('active',p.id===id));$$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));if($('#currentPageLabel'))$('#currentPageLabel').textContent=page.dataset.title||id;setMenu(false);const account=$('.account-menu');if(account)account.open=false;window.scrollTo({top:0,behavior:'smooth'});if(updateHash&&location.hash!=='#'+id)history.pushState(null,'','#'+id);}
-// Persist the theme in localStorage so the separate login/public pages can reuse it.
-function setTheme(dark){document.body.classList.toggle('dark-mode',dark);const button=$('#contrastButton');if(button){button.textContent=dark?'☀':'☾';button.setAttribute('aria-pressed',String(dark));button.setAttribute('aria-label',dark?'Enable light mode':'Enable dark mode');button.title=dark?'Enable light mode':'Enable dark mode';}}
-let darkMode=false;try{darkMode=localStorage.getItem(themeKey)==='dark';}catch(e){}setTheme(darkMode);
-const defaultPage=window.JOM.authenticated?'home':'communication';
-setMenu(false);$$('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));$('.brand')?.addEventListener('click',event=>{event.preventDefault();showPage(defaultPage);});window.addEventListener('hashchange',()=>showPage(location.hash.slice(1)||defaultPage,{updateHash:false}));window.addEventListener('resize',()=>setMenu(false));$('#menuButton')?.addEventListener('click',()=>{if(window.matchMedia('(max-width: 980px)').matches)setMenu(!$('.sidebar')?.classList.contains('open'),{restoreFocus:true});else setDesktopMenu(!document.body.classList.contains('sidebar-collapsed'),{restoreFocus:true});});$('#closeMenuButton')?.addEventListener('click',()=>setMenu(false,{restoreFocus:true}));$('#sidebarBackdrop')?.addEventListener('click',()=>setMenu(false,{restoreFocus:true}));document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('.sidebar')?.classList.contains('open'))setMenu(false,{restoreFocus:true});});$('#contrastButton')?.addEventListener('click',()=>{darkMode=!document.body.classList.contains('dark-mode');const applyTheme=()=>{setTheme(darkMode);try{localStorage.setItem(themeKey,darkMode?'dark':'light');}catch(e){}};if(document.startViewTransition&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(applyTheme);else applyTheme();});if($('#todayLabel'))$('#todayLabel').textContent=new Intl.DateTimeFormat('en-MY',{weekday:'short',day:'numeric',month:'short'}).format(new Date());
-// Leave room for sticky headers when jumping to a section; otherwise its title is covered.
-function scrollToSection(target,nav=null){if(!target)return;const headerHeight=$('.topbar')?.getBoundingClientRect().height||0;const navTop=nav?parseFloat(getComputedStyle(nav).top)||0:0;const offset=nav?Math.max(headerHeight,navTop)+nav.getBoundingClientRect().height+16:headerHeight+16;window.scrollTo({top:Math.max(0,window.scrollY+target.getBoundingClientRect().top-offset),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
-$$('[data-scroll-target]').forEach(button=>button.addEventListener('click',()=>scrollToSection(document.getElementById(button.dataset.scrollTarget))));
-document.addEventListener('click',event=>{const account=$('.account-menu');if(account?.open&&!account.contains(event.target))account.open=false;});
+(function () {
+    // FRONTEND CONTROLLER: index.php supplies the HTML and window.JOM account details.
+    // Buttons call the PHP APIs below; this file updates the page from their responses.
+    // UI visibility is for usability. Protected APIs must still check the session on the server.
+    'use strict';
+    const $ = (s) => document.querySelector(s),
+        $$ = (s) => Array.from(document.querySelectorAll(s));
+    const storageKey = 'jomcommunicate_records_v3',
+        privacyKey = 'jomcommunicate_privacy_v3',
+        conversationKey = 'tourlingo_conversation_v1',
+        emergencyKey = 'tourlingo_emergency_card_v1';
+    const themeKey = 'jomcommunicate_theme';
+    const locales = { en: 'en-US', ms: 'ms-MY', zh: 'zh-CN', id: 'id-ID', th: 'th-TH' };
+    const names = {
+        en: 'English',
+        ms: 'Bahasa Malaysia',
+        zh: 'Mandarin Chinese',
+        id: 'Indonesian',
+        th: 'Thai',
+        auto: 'Automatic detection'
+    };
+    let records = [],
+        current = null,
+        scenarioPhrases = [],
+        assistantResolvedDestination = 'Malaysia',
+        translationScenario = 'culture',
+        conversationMessages = [];
+    let speechRecognition = null,
+        speechListening = false,
+        speechBase = '',
+        speechOriginal = '',
+        speechFinal = '',
+        speechLowestConfidence = 1,
+        speechHeard = false;
+    const dictionary = {
+        'en-ms': {
+            'where is the nearest train station?': 'Stesen kereta api terdekat di mana?',
+            'thank you': 'Terima kasih',
+            'i need help': 'Saya perlukan bantuan'
+        },
+        'en-id': { 'thank you': 'Terima kasih', 'i need help': 'Saya butuh bantuan' },
+        'en-th': { 'thank you': 'ขอบคุณ', 'i need help': 'ฉันต้องการความช่วยเหลือ' },
+        'en-zh': { 'thank you': '谢谢', 'i need help': '我需要帮助' }
+    };
+    // Encode dynamic text before inserting it into HTML so content is displayed as text.
+    function escapeHtml(v) {
+        const d = document.createElement('div');
+        d.textContent = String(v ?? '');
+        return d.innerHTML;
+    }
+    function toast(m) {
+        const e = $('#toast');
+        if (!e) return;
+        e.textContent = m;
+        e.classList.add('show');
+        setTimeout(() => e.classList.remove('show'), 2600);
+    }
+    async function message(r, f) {
+        try {
+            return (await r.json()).message || f;
+        } catch (e) {
+            return f;
+        }
+    }
+    function jsonFetch(url, options = {}) {
+        return fetch(url, {
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                ...(options.headers || {})
+            },
+            ...options
+        });
+    }
+    function privacy() {
+        try {
+            return {
+                save_history: true,
+                analytics: false,
+                ...JSON.parse(localStorage.getItem(privacyKey) || '{}')
+            };
+        } catch (e) {
+            return { save_history: true, analytics: false };
+        }
+    }
+    function setMenu(open, { restoreFocus = false } = {}) {
+        const sidebar = $('.sidebar'),
+            button = $('#menuButton');
+        if (!sidebar || !button) return;
+        const drawer = window.matchMedia('(max-width: 980px)').matches;
+        if (!drawer) {
+            sidebar.classList.remove('open');
+            document.body.classList.remove('drawer-open');
+            const collapsed = document.body.classList.contains('sidebar-collapsed');
+            sidebar.setAttribute('aria-hidden', String(collapsed));
+            button.setAttribute('aria-expanded', String(!collapsed));
+            button.setAttribute('aria-label', collapsed ? 'Open navigation' : 'Close navigation');
+            return;
+        }
+        document.body.classList.remove('sidebar-collapsed');
+        sidebar.classList.toggle('open', open);
+        document.body.classList.toggle('drawer-open', open);
+        sidebar.setAttribute('aria-hidden', String(!open));
+        button.setAttribute('aria-expanded', String(open));
+        button.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+        if (open) $('#closeMenuButton')?.focus();
+        else if (restoreFocus) button.focus();
+    }
+    function setDesktopMenu(collapsed, { restoreFocus = false } = {}) {
+        const sidebar = $('.sidebar'),
+            button = $('#menuButton');
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        sidebar?.setAttribute('aria-hidden', String(collapsed));
+        button?.setAttribute('aria-expanded', String(!collapsed));
+        button?.setAttribute('aria-label', collapsed ? 'Open navigation' : 'Close navigation');
+        button?.setAttribute('title', collapsed ? 'Open navigation' : 'Close navigation');
+        if (restoreFocus) button?.focus();
+    }
+    // Main navigation switches sections inside index.php rather than loading another page.
+    // The URL hash allows the browser to return to a particular section.
+    function showPage(id, { updateHash = true } = {}) {
+        const page = document.getElementById(id);
+        if (!page?.classList.contains('page')) return;
+        $$('.page').forEach((p) => p.classList.toggle('active', p.id === id));
+        $$('[data-page]').forEach((b) => b.classList.toggle('active', b.dataset.page === id));
+        if ($('#currentPageLabel')) $('#currentPageLabel').textContent = page.dataset.title || id;
+        setMenu(false);
+        const account = $('.account-menu');
+        if (account) account.open = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (updateHash && location.hash !== '#' + id) history.pushState(null, '', '#' + id);
+    }
+    // Persist the theme in localStorage so the separate login/public pages can reuse it.
+    function setTheme(dark) {
+        document.body.classList.toggle('dark-mode', dark);
+        const button = $('#contrastButton');
+        if (button) {
+            button.textContent = dark ? '☀' : '☾';
+            button.setAttribute('aria-pressed', String(dark));
+            button.setAttribute('aria-label', dark ? 'Enable light mode' : 'Enable dark mode');
+            button.title = dark ? 'Enable light mode' : 'Enable dark mode';
+        }
+    }
+    let darkMode = false;
+    try {
+        darkMode = localStorage.getItem(themeKey) === 'dark';
+    } catch (e) {}
+    setTheme(darkMode);
+    const defaultPage = window.JOM.authenticated ? 'home' : 'communication';
+    setMenu(false);
+    $$('[data-page]').forEach((b) => (b.onclick = () => showPage(b.dataset.page)));
+    $('.brand')?.addEventListener('click', (event) => {
+        event.preventDefault();
+        showPage(defaultPage);
+    });
+    window.addEventListener('hashchange', () =>
+        showPage(location.hash.slice(1) || defaultPage, { updateHash: false })
+    );
+    window.addEventListener('resize', () => setMenu(false));
+    $('#menuButton')?.addEventListener('click', () => {
+        if (window.matchMedia('(max-width: 980px)').matches)
+            setMenu(!$('.sidebar')?.classList.contains('open'), { restoreFocus: true });
+        else
+            setDesktopMenu(!document.body.classList.contains('sidebar-collapsed'), {
+                restoreFocus: true
+            });
+    });
+    $('#closeMenuButton')?.addEventListener('click', () => setMenu(false, { restoreFocus: true }));
+    $('#sidebarBackdrop')?.addEventListener('click', () => setMenu(false, { restoreFocus: true }));
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && $('.sidebar')?.classList.contains('open'))
+            setMenu(false, { restoreFocus: true });
+    });
+    $('#contrastButton')?.addEventListener('click', () => {
+        darkMode = !document.body.classList.contains('dark-mode');
+        const applyTheme = () => {
+            setTheme(darkMode);
+            try {
+                localStorage.setItem(themeKey, darkMode ? 'dark' : 'light');
+            } catch (e) {}
+        };
+        if (
+            document.startViewTransition &&
+            !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        )
+            document.startViewTransition(applyTheme);
+        else applyTheme();
+    });
+    if ($('#todayLabel'))
+        $('#todayLabel').textContent = new Intl.DateTimeFormat('en-MY', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short'
+        }).format(new Date());
+    // Leave room for sticky headers when jumping to a section; otherwise its title is covered.
+    function scrollToSection(target, nav = null) {
+        if (!target) return;
+        const headerHeight = $('.topbar')?.getBoundingClientRect().height || 0;
+        const navTop = nav ? parseFloat(getComputedStyle(nav).top) || 0 : 0;
+        const offset = nav
+            ? Math.max(headerHeight, navTop) + nav.getBoundingClientRect().height + 16
+            : headerHeight + 16;
+        window.scrollTo({
+            top: Math.max(0, window.scrollY + target.getBoundingClientRect().top - offset),
+            behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+        });
+    }
+    $$('[data-scroll-target]').forEach((button) =>
+        button.addEventListener('click', () =>
+            scrollToSection(document.getElementById(button.dataset.scrollTarget))
+        )
+    );
+    document.addEventListener('click', (event) => {
+        const account = $('.account-menu');
+        if (account?.open && !account.contains(event.target)) account.open = false;
+    });
 
-function actions(on){['#speakResult','#copyResult','#savePhrase','#reportTranslation'].forEach(s=>{if($(s))$(s).disabled=!on;});}
-function invalidate(){current=null;actions(false);if($('#translationResult'))$('#translationResult').textContent='Translation out of date. Press Translate.';}
-function setSpeechUi(active){const start=$('#listenInput'),live=$('#voiceActive');if(start){start.hidden=active;start.setAttribute('aria-pressed',String(active));}if(live)live.hidden=!active;if(active)$('#finishSpeaking')?.focus();}
-function setSpeechStarting(starting){const start=$('#listenInput');if(!start)return;start.disabled=starting;const title=start.querySelector('strong'),help=start.querySelector('small');if(title)title.textContent=starting?'Starting microphone…':'Start speaking';if(help)help.textContent=starting?'Wait until listening begins':'Use your microphone';}
-function writeSpeech(interim=''){const input=$('#sourceText');if(!input)return;const spoken=window.JomCore.normalizeSpeechTranscript(speechFinal+' '+interim),separator=speechBase&&spoken?' ':'',limit=Number(input.maxLength)||500;input.value=window.JomCore.normalizeSpeechTranscript(speechBase+separator+spoken).slice(0,limit);$('#characterCount').textContent=input.value.length;invalidate();}
-function completeSpeech(){const input=$('#sourceText');speechRecognition=null;speechListening=false;setSpeechStarting(false);setSpeechUi(false);if(speechHeard&&speechLowestConfidence<.55&&!confirm('Voice confidence is low. Use this message anyway?')){input.value=speechOriginal;$('#characterCount').textContent=input.value.length;}else if(speechHeard&&speechLowestConfidence<.7){track('low_confidence',$('#sourceLanguage').value,translationScenario,'',speechLowestConfidence);}invalidate();$('#listenInput')?.focus();}
-// MICROPHONE INPUT: the browser speech recognizer converts audio to editable text.
-// Interim results are live guesses; final results are appended to the current recording.
-// The service may end after silence, so restart while speechListening remains true.
-// Finish speaking clears that flag. Phrase hints/candidate scoring are heuristics,
-// not a guarantee of accuracy; this is separate from Google translation and playback.
-function startRecognition(lang){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Speech recognition is unavailable in this browser.');return;}translationScenario='culture';speechOriginal=$('#sourceText').value.trim();speechBase='';speechFinal='';speechLowestConfidence=1;speechHeard=false;const r=new SR(),biasPhrases=window.JomCore.speechBiasPhrases();speechRecognition=r;speechListening=true;r.lang=window.JomCore.speechRecognitionLanguage(lang,navigator.language);r.continuous=true;r.interimResults=true;r.maxAlternatives=5;const Phrase=window.SpeechRecognitionPhrase;if(Phrase&&'phrases' in r){try{biasPhrases.forEach(value=>r.phrases.push(new Phrase(value,5)));}catch(e){/* Older recognizers ignore contextual phrases. */}}r.onstart=()=>{setSpeechStarting(false);setSpeechUi(true);};r.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const result=e.results[i],part=window.JomCore.bestSpeechAlternative(result,biasPhrases);if(result.isFinal){speechFinal=(speechFinal+' '+part.transcript).trim();speechHeard=true;if(Number.isFinite(part.confidence)&&part.confidence>0)speechLowestConfidence=Math.min(speechLowestConfidence,part.confidence);}else interim+=' '+part.transcript;}writeSpeech(interim.trim());};r.onerror=e=>{if(e.error==='aborted'&&!speechListening)return;if(e.error==='phrases-not-supported'){try{r.phrases.length=0;}catch(error){}return;}if(window.JomCore.recoverableSpeechError(e.error))return;speechListening=false;const errors={'not-allowed':'Allow microphone access to start speaking.','service-not-allowed':'Allow microphone access to start speaking.','audio-capture':'No microphone is available. Check browser microphone access and try again.','network':'The speech service could not connect. Check your connection and try again.'};toast(errors[e.error]||'Voice input was interrupted. Try again.');};r.onend=()=>{if(speechListening){setTimeout(()=>{if(!speechListening||speechRecognition!==r)return;try{r.start();}catch(e){speechListening=false;if(speechRecognition===r)completeSpeech();toast('Voice input was interrupted. Try again.');}},150);return;}if(speechRecognition===r)completeSpeech();};setSpeechStarting(true);try{r.start();}catch(e){speechListening=false;completeSpeech();toast('Voice input was interrupted. Try again.');}}
-function finishRecognition(){if(!speechListening)return;speechListening=false;try{speechRecognition?.stop();}catch(e){completeSpeech();}}
-// TRANSLATION: use a small curated dictionary first, otherwise POST text/from/to to
-// api/translate.php. Display the response, then save history only for signed-in users.
-// A missing provider confidence score stays null instead of becoming an invented percentage.
-async function translate(){const text=$('#sourceText').value.trim(),from=$('#sourceLanguage').value,to=$('#targetLanguage').value,scenario=translationScenario;if(!text){toast('Enter a message first.');return;}const button=$('#translateButton');button.disabled=true;button.textContent='Translating…';try{let data;const local=(dictionary[from+'-'+to]||{})[text.toLowerCase()];if(local)data={translation:local,detected_language:from,confidence:1,confidence_source:'curated_phrase',alternatives:[],suggestions:[],matched_terms:[]};else{const r=await jsonFetch('api/translate.php',{method:'POST',body:JSON.stringify({text,from,to,scenario})});if(!r.ok)throw new Error(await message(r,'Translation failed.'));data=await r.json();}const confidence=data.confidence===null||data.confidence===undefined?null:Number(data.confidence);current={source:text,translation:data.translation,from:data.detected_language||from,to,scenario,confidence,confidenceSource:data.confidence_source||'',alternatives:data.alternatives||[],suggestions:data.suggestions||[],matchedTerms:data.matched_terms||[]};$('#translationResult').textContent=current.translation;$('#translationMeta').textContent='Detected: '+(names[current.from]||current.from)+' · '+window.JomCore.confidenceLabel(confidence);const context=[...current.alternatives,...current.suggestions.map(v=>v.source_text+' → '+v.translated_text+(v.suggested_reply?' · Reply: '+v.suggested_reply:''))];$('#translationAlternatives').innerHTML=context.length?'<strong>Alternative / scenario context</strong>'+context.map(v=>'<div class="record-item">'+escapeHtml(v)+'</div>').join(''):'';actions(true);renderTwoWay();addConversation(current);if(window.JOM.authenticated&&$('#historyConsent')?.checked!==false)await saveRecord({record_type:'translation',title:text,content:current.translation,source_language:current.from,target_language:to,scenario,confidence,metadata:{from:current.from,to,scenario}});await track('translation',to,scenario,current.matchedTerms[0]||'',confidence);prepareNextTwoWayTurn(current,from);if($('#profileVoice')?.checked)await speak();}catch(e){$('#translationResult').textContent=e.message;toast(e.message);}finally{button.disabled=false;button.textContent='Translate message';}}
-function renderTwoWay(){const e=$('#twoWayReplies');if(!e)return;if(!$('#twoWayMode').checked||!current){e.innerHTML='';return;}const replies=['Yes, please.','No, thank you.','Could you repeat that?'];e.innerHTML=replies.map(v=>'<button class="chip" data-reply="'+escapeHtml(v)+'">'+escapeHtml(v)+'</button>').join('');$$('[data-reply]').forEach(b=>b.onclick=()=>{const direction={source:current.to,target:current.from};$('#sourceText').value=b.dataset.reply;$('#characterCount').textContent=b.dataset.reply.length;$('#sourceLanguage').value=direction.source;$('#targetLanguage').value=direction.target;invalidate();translate();});}
-// In two-way mode the next speaker uses the previous target language.
-// Automatic source detection must resolve to a real language before reversing direction.
-function prepareNextTwoWayTurn(exchange,selectedSource){if(!$('#twoWayMode')?.checked)return;const direction=window.JomCore.twoWayLanguages(selectedSource,exchange.to,exchange.from);$('#sourceLanguage').value=direction.source;$('#targetLanguage').value=direction.target;$('#sourceText').value='';$('#characterCount').textContent='0';toast('Ready for '+(names[direction.source]||direction.source)+' → '+(names[direction.target]||direction.target)+'.');}
-function persistConversation(){try{localStorage.setItem(conversationKey,JSON.stringify(conversationMessages.slice(-30)));}catch(e){}}
-function addConversation(exchange){if(!window.JOM.authenticated)return;const twoWay=$('#twoWayMode')?.checked,speaker=twoWay&&conversationMessages.at(-1)?.speaker==='speaker-a'?'speaker-b':'speaker-a';conversationMessages.push({source:exchange.source,translation:exchange.translation,from:exchange.from,to:exchange.to,speaker,created_at:new Date().toISOString()});persistConversation();renderConversation();}
-function renderConversation(){const el=$('#conversationTimeline');if(!el)return;el.innerHTML=conversationMessages.length?conversationMessages.map((row,index)=>'<div class="conversation-exchange '+row.speaker+'"><div class="conversation-speaker">'+(row.speaker==='speaker-b'?'Speaker B':'Speaker A')+'</div><div class="conversation-bubble"><strong>'+escapeHtml(row.source)+'</strong><span>'+escapeHtml(row.translation)+'</span><div class="conversation-meta">'+escapeHtml(names[row.from]||row.from)+' → '+escapeHtml(names[row.to]||row.to)+'</div></div><div class="conversation-actions"><button class="secondary" type="button" data-conversation-action="replay" data-index="'+index+'">Replay</button><button class="secondary" type="button" data-conversation-action="copy" data-index="'+index+'">Copy</button><button class="secondary" type="button" data-conversation-action="edit" data-index="'+index+'">Edit</button><button class="secondary" type="button" data-conversation-action="retry" data-index="'+index+'">Retry</button></div></div>').join(''):'<div class="empty-state">Your translated messages will appear here in order.</div>';$$('[data-conversation-action]').forEach(button=>button.onclick=async()=>{const row=conversationMessages[Number(button.dataset.index)];if(!row)return;const action=button.dataset.conversationAction;if(action==='replay')await speakMessage(row.translation,row.to);if(action==='copy'){await navigator.clipboard.writeText(row.source+'\n'+row.translation);toast('Conversation message copied.');}if(action==='edit'||action==='retry'){$('#sourceText').value=row.source;$('#sourceLanguage').value=row.from;$('#targetLanguage').value=row.to;$('#characterCount').textContent=row.source.length;invalidate();$('#sourceText').focus();if(action==='retry')translate();}});}
-// PLAYBACK: api/speech.php returns MP3 audio for text already translated.
-// Revoke the temporary audio URL after playback to release browser memory.
-async function speakMessage(textValue,language){const r=await jsonFetch('api/speech.php',{method:'POST',body:JSON.stringify({text:textValue,language})});if(!r.ok){toast(await message(r,'Speech failed.'));return;}const url=URL.createObjectURL(await r.blob()),audio=new Audio(url);audio.onended=()=>URL.revokeObjectURL(url);audio.play();}
-async function speak(){if(current)await speakMessage(current.translation,current.to);}
-async function report(){if(!current)return;const notes=prompt('What is unclear? (optional)')??'';const r=await jsonFetch('api/report.php',{method:'POST',body:JSON.stringify({source_text:current.source,translated_text:current.translation,source_language:current.from,target_language:current.to,scenario:current.scenario,confidence:current.confidence,issue_type:current.confidence!==null&&current.confidence<.7?'low_confidence':'unclear_translation',term_label:current.matchedTerms[0]||'',notes,csrf:window.JOM.csrf})});toast(r.ok?'Translation reported.':await message(r,'Could not report.'));}
-$('#sourceText')?.addEventListener('input',()=>{translationScenario='culture';$('#characterCount').textContent=$('#sourceText').value.length;invalidate();});$('#sourceLanguage')?.addEventListener('change',invalidate);$('#targetLanguage')?.addEventListener('change',invalidate);$('#translateButton')?.addEventListener('click',translate);$('#twoWayMode')?.addEventListener('change',renderTwoWay);$('#swapLanguages')?.addEventListener('click',()=>{const a=$('#sourceLanguage').value;if(a==='auto'){toast('Choose a source language before swapping.');return;}$('#sourceLanguage').value=$('#targetLanguage').value;$('#targetLanguage').value=a;invalidate();});$('#listenInput')?.addEventListener('click',()=>startRecognition($('#sourceLanguage').value));$('#finishSpeaking')?.addEventListener('click',finishRecognition);$('#speakResult')?.addEventListener('click',speak);$('#copyResult')?.addEventListener('click',()=>current&&navigator.clipboard.writeText(current.translation).then(()=>toast('Copied.')));$('#reportTranslation')?.addEventListener('click',report);
-try{if(window.JOM.authenticated)conversationMessages=JSON.parse(localStorage.getItem(conversationKey)||'[]');if(!Array.isArray(conversationMessages))conversationMessages=[];}catch(e){conversationMessages=[];}renderConversation();
-$('#clearConversation')?.addEventListener('click',()=>{conversationMessages=[];persistConversation();renderConversation();toast('Conversation cleared.');});
-let overlayReturnFocus=null;
-function openOverlay(source,translation,extra=''){const overlay=$('#messageOverlay');if(!overlay)return;overlayReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;$('#overlaySource').textContent=source;$('#overlayTranslation').textContent=translation;$('#overlayExtra').textContent=extra;overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');$('#closeOverlay')?.focus();}
-function closeOverlay(){const overlay=$('#messageOverlay');if(!overlay?.classList.contains('open'))return;overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');overlayReturnFocus?.focus();overlayReturnFocus=null;}
-$('#largeMessage')?.addEventListener('click',()=>current?openOverlay(current.source,current.translation,'Show this screen to the other person.'):toast('Translate a message first.'));$('#closeOverlay')?.addEventListener('click',closeOverlay);$('#messageOverlay')?.addEventListener('click',event=>{if(event.target===event.currentTarget)closeOverlay();});
-document.addEventListener('keydown',event=>{const overlay=$('#messageOverlay');if(!overlay?.classList.contains('open'))return;if(event.key==='Escape'){event.preventDefault();closeOverlay();}else if(event.key==='Tab'){event.preventDefault();$('#closeOverlay')?.focus();}});
+    function actions(on) {
+        ['#speakResult', '#copyResult', '#savePhrase', '#reportTranslation'].forEach((s) => {
+            if ($(s)) $(s).disabled = !on;
+        });
+    }
+    function invalidate() {
+        current = null;
+        actions(false);
+        if ($('#translationResult'))
+            $('#translationResult').textContent = 'Translation out of date. Press Translate.';
+    }
+    function setSpeechUi(active) {
+        const start = $('#listenInput'),
+            live = $('#voiceActive');
+        if (start) {
+            start.hidden = active;
+            start.setAttribute('aria-pressed', String(active));
+        }
+        if (live) live.hidden = !active;
+        if (active) $('#finishSpeaking')?.focus();
+    }
+    function setSpeechStarting(starting) {
+        const start = $('#listenInput');
+        if (!start) return;
+        start.disabled = starting;
+        const title = start.querySelector('strong'),
+            help = start.querySelector('small');
+        if (title) title.textContent = starting ? 'Starting microphone…' : 'Start speaking';
+        if (help)
+            help.textContent = starting ? 'Wait until listening begins' : 'Use your microphone';
+    }
+    function writeSpeech(interim = '') {
+        const input = $('#sourceText');
+        if (!input) return;
+        const spoken = window.JomCore.normalizeSpeechTranscript(speechFinal + ' ' + interim),
+            separator = speechBase && spoken ? ' ' : '',
+            limit = Number(input.maxLength) || 500;
+        input.value = window.JomCore.normalizeSpeechTranscript(
+            speechBase + separator + spoken
+        ).slice(0, limit);
+        $('#characterCount').textContent = input.value.length;
+        invalidate();
+    }
+    function completeSpeech() {
+        const input = $('#sourceText');
+        speechRecognition = null;
+        speechListening = false;
+        setSpeechStarting(false);
+        setSpeechUi(false);
+        if (
+            speechHeard &&
+            speechLowestConfidence < 0.55 &&
+            !confirm('Voice confidence is low. Use this message anyway?')
+        ) {
+            input.value = speechOriginal;
+            $('#characterCount').textContent = input.value.length;
+        } else if (speechHeard && speechLowestConfidence < 0.7) {
+            track(
+                'low_confidence',
+                $('#sourceLanguage').value,
+                translationScenario,
+                '',
+                speechLowestConfidence
+            );
+        }
+        invalidate();
+        $('#listenInput')?.focus();
+    }
+    // MICROPHONE INPUT: the browser speech recognizer converts audio to editable text.
+    // Interim results are live guesses; final results are appended to the current recording.
+    // The service may end after silence, so restart while speechListening remains true.
+    // Finish speaking clears that flag. Phrase hints/candidate scoring are heuristics,
+    // not a guarantee of accuracy; this is separate from Google translation and playback.
+    function startRecognition(lang) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            toast('Speech recognition is unavailable in this browser.');
+            return;
+        }
+        translationScenario = 'culture';
+        speechOriginal = $('#sourceText').value.trim();
+        speechBase = '';
+        speechFinal = '';
+        speechLowestConfidence = 1;
+        speechHeard = false;
+        const r = new SR(),
+            biasPhrases = window.JomCore.speechBiasPhrases();
+        speechRecognition = r;
+        speechListening = true;
+        r.lang = window.JomCore.speechRecognitionLanguage(lang, navigator.language);
+        r.continuous = true;
+        r.interimResults = true;
+        r.maxAlternatives = 5;
+        const Phrase = window.SpeechRecognitionPhrase;
+        if (Phrase && 'phrases' in r) {
+            try {
+                biasPhrases.forEach((value) => r.phrases.push(new Phrase(value, 5)));
+            } catch (e) {
+                /* Older recognizers ignore contextual phrases. */
+            }
+        }
+        r.onstart = () => {
+            setSpeechStarting(false);
+            setSpeechUi(true);
+        };
+        r.onresult = (e) => {
+            let interim = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                const result = e.results[i],
+                    part = window.JomCore.bestSpeechAlternative(result, biasPhrases);
+                if (result.isFinal) {
+                    speechFinal = (speechFinal + ' ' + part.transcript).trim();
+                    speechHeard = true;
+                    if (Number.isFinite(part.confidence) && part.confidence > 0)
+                        speechLowestConfidence = Math.min(speechLowestConfidence, part.confidence);
+                } else interim += ' ' + part.transcript;
+            }
+            writeSpeech(interim.trim());
+        };
+        r.onerror = (e) => {
+            if (e.error === 'aborted' && !speechListening) return;
+            if (e.error === 'phrases-not-supported') {
+                try {
+                    r.phrases.length = 0;
+                } catch (error) {}
+                return;
+            }
+            if (window.JomCore.recoverableSpeechError(e.error)) return;
+            speechListening = false;
+            const errors = {
+                'not-allowed': 'Allow microphone access to start speaking.',
+                'service-not-allowed': 'Allow microphone access to start speaking.',
+                'audio-capture':
+                    'No microphone is available. Check browser microphone access and try again.',
+                network:
+                    'The speech service could not connect. Check your connection and try again.'
+            };
+            toast(errors[e.error] || 'Voice input was interrupted. Try again.');
+        };
+        r.onend = () => {
+            if (speechListening) {
+                setTimeout(() => {
+                    if (!speechListening || speechRecognition !== r) return;
+                    try {
+                        r.start();
+                    } catch (e) {
+                        speechListening = false;
+                        if (speechRecognition === r) completeSpeech();
+                        toast('Voice input was interrupted. Try again.');
+                    }
+                }, 150);
+                return;
+            }
+            if (speechRecognition === r) completeSpeech();
+        };
+        setSpeechStarting(true);
+        try {
+            r.start();
+        } catch (e) {
+            speechListening = false;
+            completeSpeech();
+            toast('Voice input was interrupted. Try again.');
+        }
+    }
+    function finishRecognition() {
+        if (!speechListening) return;
+        speechListening = false;
+        try {
+            speechRecognition?.stop();
+        } catch (e) {
+            completeSpeech();
+        }
+    }
+    // TRANSLATION: use a small curated dictionary first, otherwise POST text/from/to to
+    // api/translate.php. Display the response, then save history only for signed-in users.
+    // A missing provider confidence score stays null instead of becoming an invented percentage.
+    async function translate() {
+        const text = $('#sourceText').value.trim(),
+            from = $('#sourceLanguage').value,
+            to = $('#targetLanguage').value,
+            scenario = translationScenario;
+        if (!text) {
+            toast('Enter a message first.');
+            return;
+        }
+        const button = $('#translateButton');
+        button.disabled = true;
+        button.textContent = 'Translating…';
+        try {
+            let data;
+            const local = (dictionary[from + '-' + to] || {})[text.toLowerCase()];
+            if (local)
+                data = {
+                    translation: local,
+                    detected_language: from,
+                    confidence: 1,
+                    confidence_source: 'curated_phrase',
+                    alternatives: [],
+                    suggestions: [],
+                    matched_terms: []
+                };
+            else {
+                const r = await jsonFetch('api/translate.php', {
+                    method: 'POST',
+                    body: JSON.stringify({ text, from, to, scenario })
+                });
+                if (!r.ok) throw new Error(await message(r, 'Translation failed.'));
+                data = await r.json();
+            }
+            const confidence =
+                data.confidence === null || data.confidence === undefined
+                    ? null
+                    : Number(data.confidence);
+            current = {
+                source: text,
+                translation: data.translation,
+                from: data.detected_language || from,
+                to,
+                scenario,
+                confidence,
+                confidenceSource: data.confidence_source || '',
+                alternatives: data.alternatives || [],
+                suggestions: data.suggestions || [],
+                matchedTerms: data.matched_terms || []
+            };
+            $('#translationResult').textContent = current.translation;
+            $('#translationMeta').textContent =
+                'Detected: ' +
+                (names[current.from] || current.from) +
+                ' · ' +
+                window.JomCore.confidenceLabel(confidence);
+            const context = [
+                ...current.alternatives,
+                ...current.suggestions.map(
+                    (v) =>
+                        v.source_text +
+                        ' → ' +
+                        v.translated_text +
+                        (v.suggested_reply ? ' · Reply: ' + v.suggested_reply : '')
+                )
+            ];
+            $('#translationAlternatives').innerHTML = context.length
+                ? '<strong>Alternative / scenario context</strong>' +
+                  context
+                      .map((v) => '<div class="record-item">' + escapeHtml(v) + '</div>')
+                      .join('')
+                : '';
+            actions(true);
+            renderTwoWay();
+            addConversation(current);
+            if (window.JOM.authenticated && $('#historyConsent')?.checked !== false)
+                await saveRecord({
+                    record_type: 'translation',
+                    title: text,
+                    content: current.translation,
+                    source_language: current.from,
+                    target_language: to,
+                    scenario,
+                    confidence,
+                    metadata: { from: current.from, to, scenario }
+                });
+            await track('translation', to, scenario, current.matchedTerms[0] || '', confidence);
+            prepareNextTwoWayTurn(current, from);
+            if ($('#profileVoice')?.checked) await speak();
+        } catch (e) {
+            $('#translationResult').textContent = e.message;
+            toast(e.message);
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Translate message';
+        }
+    }
+    function renderTwoWay() {
+        const e = $('#twoWayReplies');
+        if (!e) return;
+        if (!$('#twoWayMode').checked || !current) {
+            e.innerHTML = '';
+            return;
+        }
+        const replies = ['Yes, please.', 'No, thank you.', 'Could you repeat that?'];
+        e.innerHTML = replies
+            .map(
+                (v) =>
+                    '<button class="chip" data-reply="' +
+                    escapeHtml(v) +
+                    '">' +
+                    escapeHtml(v) +
+                    '</button>'
+            )
+            .join('');
+        $$('[data-reply]').forEach(
+            (b) =>
+                (b.onclick = () => {
+                    const direction = { source: current.to, target: current.from };
+                    $('#sourceText').value = b.dataset.reply;
+                    $('#characterCount').textContent = b.dataset.reply.length;
+                    $('#sourceLanguage').value = direction.source;
+                    $('#targetLanguage').value = direction.target;
+                    invalidate();
+                    translate();
+                })
+        );
+    }
+    // In two-way mode the next speaker uses the previous target language.
+    // Automatic source detection must resolve to a real language before reversing direction.
+    function prepareNextTwoWayTurn(exchange, selectedSource) {
+        if (!$('#twoWayMode')?.checked) return;
+        const direction = window.JomCore.twoWayLanguages(
+            selectedSource,
+            exchange.to,
+            exchange.from
+        );
+        $('#sourceLanguage').value = direction.source;
+        $('#targetLanguage').value = direction.target;
+        $('#sourceText').value = '';
+        $('#characterCount').textContent = '0';
+        toast(
+            'Ready for ' +
+                (names[direction.source] || direction.source) +
+                ' → ' +
+                (names[direction.target] || direction.target) +
+                '.'
+        );
+    }
+    function persistConversation() {
+        try {
+            localStorage.setItem(conversationKey, JSON.stringify(conversationMessages.slice(-30)));
+        } catch (e) {}
+    }
+    function addConversation(exchange) {
+        if (!window.JOM.authenticated) return;
+        const twoWay = $('#twoWayMode')?.checked,
+            speaker =
+                twoWay && conversationMessages.at(-1)?.speaker === 'speaker-a'
+                    ? 'speaker-b'
+                    : 'speaker-a';
+        conversationMessages.push({
+            source: exchange.source,
+            translation: exchange.translation,
+            from: exchange.from,
+            to: exchange.to,
+            speaker,
+            created_at: new Date().toISOString()
+        });
+        persistConversation();
+        renderConversation();
+    }
+    function renderConversation() {
+        const el = $('#conversationTimeline');
+        if (!el) return;
+        el.innerHTML = conversationMessages.length
+            ? conversationMessages
+                  .map(
+                      (row, index) =>
+                          '<div class="conversation-exchange ' +
+                          row.speaker +
+                          '"><div class="conversation-speaker">' +
+                          (row.speaker === 'speaker-b' ? 'Speaker B' : 'Speaker A') +
+                          '</div><div class="conversation-bubble"><strong>' +
+                          escapeHtml(row.source) +
+                          '</strong><span>' +
+                          escapeHtml(row.translation) +
+                          '</span><div class="conversation-meta">' +
+                          escapeHtml(names[row.from] || row.from) +
+                          ' → ' +
+                          escapeHtml(names[row.to] || row.to) +
+                          '</div></div><div class="conversation-actions"><button class="secondary" type="button" data-conversation-action="replay" data-index="' +
+                          index +
+                          '">Replay</button><button class="secondary" type="button" data-conversation-action="copy" data-index="' +
+                          index +
+                          '">Copy</button><button class="secondary" type="button" data-conversation-action="edit" data-index="' +
+                          index +
+                          '">Edit</button><button class="secondary" type="button" data-conversation-action="retry" data-index="' +
+                          index +
+                          '">Retry</button></div></div>'
+                  )
+                  .join('')
+            : '<div class="empty-state">Your translated messages will appear here in order.</div>';
+        $$('[data-conversation-action]').forEach(
+            (button) =>
+                (button.onclick = async () => {
+                    const row = conversationMessages[Number(button.dataset.index)];
+                    if (!row) return;
+                    const action = button.dataset.conversationAction;
+                    if (action === 'replay') await speakMessage(row.translation, row.to);
+                    if (action === 'copy') {
+                        await navigator.clipboard.writeText(row.source + '\n' + row.translation);
+                        toast('Conversation message copied.');
+                    }
+                    if (action === 'edit' || action === 'retry') {
+                        $('#sourceText').value = row.source;
+                        $('#sourceLanguage').value = row.from;
+                        $('#targetLanguage').value = row.to;
+                        $('#characterCount').textContent = row.source.length;
+                        invalidate();
+                        $('#sourceText').focus();
+                        if (action === 'retry') translate();
+                    }
+                })
+        );
+    }
+    // PLAYBACK: api/speech.php returns MP3 audio for text already translated.
+    // Revoke the temporary audio URL after playback to release browser memory.
+    async function speakMessage(textValue, language) {
+        const r = await jsonFetch('api/speech.php', {
+            method: 'POST',
+            body: JSON.stringify({ text: textValue, language })
+        });
+        if (!r.ok) {
+            toast(await message(r, 'Speech failed.'));
+            return;
+        }
+        const url = URL.createObjectURL(await r.blob()),
+            audio = new Audio(url);
+        audio.onended = () => URL.revokeObjectURL(url);
+        audio.play();
+    }
+    async function speak() {
+        if (current) await speakMessage(current.translation, current.to);
+    }
+    async function report() {
+        if (!current) return;
+        const notes = prompt('What is unclear? (optional)') ?? '';
+        const r = await jsonFetch('api/report.php', {
+            method: 'POST',
+            body: JSON.stringify({
+                source_text: current.source,
+                translated_text: current.translation,
+                source_language: current.from,
+                target_language: current.to,
+                scenario: current.scenario,
+                confidence: current.confidence,
+                issue_type:
+                    current.confidence !== null && current.confidence < 0.7
+                        ? 'low_confidence'
+                        : 'unclear_translation',
+                term_label: current.matchedTerms[0] || '',
+                notes,
+                csrf: window.JOM.csrf
+            })
+        });
+        toast(r.ok ? 'Translation reported.' : await message(r, 'Could not report.'));
+    }
+    $('#sourceText')?.addEventListener('input', () => {
+        translationScenario = 'culture';
+        $('#characterCount').textContent = $('#sourceText').value.length;
+        invalidate();
+    });
+    $('#sourceLanguage')?.addEventListener('change', invalidate);
+    $('#targetLanguage')?.addEventListener('change', invalidate);
+    $('#translateButton')?.addEventListener('click', translate);
+    $('#twoWayMode')?.addEventListener('change', renderTwoWay);
+    $('#swapLanguages')?.addEventListener('click', () => {
+        const a = $('#sourceLanguage').value;
+        if (a === 'auto') {
+            toast('Choose a source language before swapping.');
+            return;
+        }
+        $('#sourceLanguage').value = $('#targetLanguage').value;
+        $('#targetLanguage').value = a;
+        invalidate();
+    });
+    $('#listenInput')?.addEventListener('click', () =>
+        startRecognition($('#sourceLanguage').value)
+    );
+    $('#finishSpeaking')?.addEventListener('click', finishRecognition);
+    $('#speakResult')?.addEventListener('click', speak);
+    $('#copyResult')?.addEventListener(
+        'click',
+        () =>
+            current &&
+            navigator.clipboard.writeText(current.translation).then(() => toast('Copied.'))
+    );
+    $('#reportTranslation')?.addEventListener('click', report);
+    try {
+        if (window.JOM.authenticated)
+            conversationMessages = JSON.parse(localStorage.getItem(conversationKey) || '[]');
+        if (!Array.isArray(conversationMessages)) conversationMessages = [];
+    } catch (e) {
+        conversationMessages = [];
+    }
+    renderConversation();
+    $('#clearConversation')?.addEventListener('click', () => {
+        conversationMessages = [];
+        persistConversation();
+        renderConversation();
+        toast('Conversation cleared.');
+    });
+    let overlayReturnFocus = null;
+    function openOverlay(source, translation, extra = '') {
+        const overlay = $('#messageOverlay');
+        if (!overlay) return;
+        overlayReturnFocus =
+            document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        $('#overlaySource').textContent = source;
+        $('#overlayTranslation').textContent = translation;
+        $('#overlayExtra').textContent = extra;
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+        $('#closeOverlay')?.focus();
+    }
+    function closeOverlay() {
+        const overlay = $('#messageOverlay');
+        if (!overlay?.classList.contains('open')) return;
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden', 'true');
+        overlayReturnFocus?.focus();
+        overlayReturnFocus = null;
+    }
+    $('#largeMessage')?.addEventListener('click', () =>
+        current
+            ? openOverlay(
+                  current.source,
+                  current.translation,
+                  'Show this screen to the other person.'
+              )
+            : toast('Translate a message first.')
+    );
+    $('#closeOverlay')?.addEventListener('click', closeOverlay);
+    $('#messageOverlay')?.addEventListener('click', (event) => {
+        if (event.target === event.currentTarget) closeOverlay();
+    });
+    document.addEventListener('keydown', (event) => {
+        const overlay = $('#messageOverlay');
+        if (!overlay?.classList.contains('open')) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeOverlay();
+        } else if (event.key === 'Tab') {
+            event.preventDefault();
+            $('#closeOverlay')?.focus();
+        }
+    });
 
-function localRecords(){try{return JSON.parse(localStorage.getItem(storageKey)||'[]');}catch(e){return[];}}
-function serverHistory(){return window.JOM.authenticated&&['tourist','business'].includes(window.JOM.role);}
-async function loadRecords(){if(!window.JOM.authenticated)return;if(serverHistory()){const r=await fetch('api/records.php');records=r.ok?(await r.json()).records:[];}else records=localRecords();renderRecords();}
-// History storage depends on the account: tourist/business records use api/records.php;
-// other signed-in roles use local storage. Guests return without saving.
-async function saveRecord(row){if(!window.JOM.authenticated)return;row.created_at=new Date().toISOString();if(serverHistory()){const r=await jsonFetch('api/records.php',{method:'POST',body:JSON.stringify({...row,csrf:window.JOM.csrf})});if(r.ok)row.id=(await r.json()).id;else return;}else{row.id='local-'+Date.now();const l=localRecords();l.unshift(row);localStorage.setItem(storageKey,JSON.stringify(l.slice(0,100)));}records.unshift(row);renderRecords();}
-async function removeRecord(id){if(String(id).startsWith('local-'))localStorage.setItem(storageKey,JSON.stringify(localRecords().filter(r=>String(r.id)!==String(id))));else await fetch('api/records.php?id='+encodeURIComponent(id),{method:'DELETE',headers:{'X-CSRF-Token':window.JOM.csrf}});records=records.filter(r=>String(r.id)!==String(id));renderRecords();}
-async function favorite(id,on){if(!String(id).startsWith('local-'))await jsonFetch('api/records.php',{method:'PATCH',body:JSON.stringify({id:Number(id),is_favorite:on,csrf:window.JOM.csrf})});const row=records.find(r=>String(r.id)===String(id));if(row)row.is_favorite=on?1:0;if(String(id).startsWith('local-'))localStorage.setItem(storageKey,JSON.stringify(records));renderRecords();}
-function recordRow(r){const favorite=Number(r.is_favorite),favoriteLabel=favorite?'Remove from favourites':'Add to favourites';return '<div class="record-item"><div><strong>'+escapeHtml(r.title)+'</strong><small>'+escapeHtml(r.content)+'</small></div><span><button type="button" data-fav="'+escapeHtml(r.id)+'" aria-label="'+favoriteLabel+'" title="'+favoriteLabel+'">'+(favorite?'★':'☆')+'</button><button type="button" data-del="'+escapeHtml(r.id)+'" aria-label="Delete saved item" title="Delete saved item">×</button></span></div>';}
-function renderRecords(){const recent=records.filter(r=>r.record_type==='translation').slice(0,8),saved=records.filter(r=>r.record_type==='phrase'||Number(r.is_favorite)).slice(0,20);if($('#recentTranslations'))$('#recentTranslations').innerHTML=recent.length?recent.map(recordRow).join(''):'<div class="empty-state">No recent translations.</div>';if($('#savedPhrases'))$('#savedPhrases').innerHTML=saved.length?saved.map(recordRow).join(''):'<div class="empty-state">No favourites yet.</div>';$$('[data-del]').forEach(b=>b.onclick=()=>removeRecord(b.dataset.del));$$('[data-fav]').forEach(b=>b.onclick=()=>favorite(b.dataset.fav,b.textContent==='☆'));}
-$('#savePhrase')?.addEventListener('click',()=>current&&saveRecord({record_type:'phrase',title:current.source,content:current.translation,source_language:current.from,target_language:current.to,scenario:current.scenario,confidence:current.confidence,is_favorite:true,metadata:{}}).then(()=>toast('Phrase saved as a favourite.')));
+    function localRecords() {
+        try {
+            return JSON.parse(localStorage.getItem(storageKey) || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+    function serverHistory() {
+        return window.JOM.authenticated && ['tourist', 'business'].includes(window.JOM.role);
+    }
+    async function loadRecords() {
+        if (!window.JOM.authenticated) return;
+        if (serverHistory()) {
+            const r = await fetch('api/records.php');
+            records = r.ok ? (await r.json()).records : [];
+        } else records = localRecords();
+        renderRecords();
+    }
+    // History storage depends on the account: tourist/business records use api/records.php;
+    // other signed-in roles use local storage. Guests return without saving.
+    async function saveRecord(row) {
+        if (!window.JOM.authenticated) return;
+        row.created_at = new Date().toISOString();
+        if (serverHistory()) {
+            const r = await jsonFetch('api/records.php', {
+                method: 'POST',
+                body: JSON.stringify({ ...row, csrf: window.JOM.csrf })
+            });
+            if (r.ok) row.id = (await r.json()).id;
+            else return;
+        } else {
+            row.id = 'local-' + Date.now();
+            const l = localRecords();
+            l.unshift(row);
+            localStorage.setItem(storageKey, JSON.stringify(l.slice(0, 100)));
+        }
+        records.unshift(row);
+        renderRecords();
+    }
+    async function removeRecord(id) {
+        if (String(id).startsWith('local-'))
+            localStorage.setItem(
+                storageKey,
+                JSON.stringify(localRecords().filter((r) => String(r.id) !== String(id)))
+            );
+        else
+            await fetch('api/records.php?id=' + encodeURIComponent(id), {
+                method: 'DELETE',
+                headers: { 'X-CSRF-Token': window.JOM.csrf }
+            });
+        records = records.filter((r) => String(r.id) !== String(id));
+        renderRecords();
+    }
+    async function favorite(id, on) {
+        if (!String(id).startsWith('local-'))
+            await jsonFetch('api/records.php', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: Number(id), is_favorite: on, csrf: window.JOM.csrf })
+            });
+        const row = records.find((r) => String(r.id) === String(id));
+        if (row) row.is_favorite = on ? 1 : 0;
+        if (String(id).startsWith('local-'))
+            localStorage.setItem(storageKey, JSON.stringify(records));
+        renderRecords();
+    }
+    function recordRow(r) {
+        const favorite = Number(r.is_favorite),
+            favoriteLabel = favorite ? 'Remove from favourites' : 'Add to favourites';
+        return (
+            '<div class="record-item"><div><strong>' +
+            escapeHtml(r.title) +
+            '</strong><small>' +
+            escapeHtml(r.content) +
+            '</small></div><span><button type="button" data-fav="' +
+            escapeHtml(r.id) +
+            '" aria-label="' +
+            favoriteLabel +
+            '" title="' +
+            favoriteLabel +
+            '">' +
+            (favorite ? '★' : '☆') +
+            '</button><button type="button" data-del="' +
+            escapeHtml(r.id) +
+            '" aria-label="Delete saved item" title="Delete saved item">×</button></span></div>'
+        );
+    }
+    function renderRecords() {
+        const recent = records.filter((r) => r.record_type === 'translation').slice(0, 8),
+            saved = records
+                .filter((r) => r.record_type === 'phrase' || Number(r.is_favorite))
+                .slice(0, 20);
+        if ($('#recentTranslations'))
+            $('#recentTranslations').innerHTML = recent.length
+                ? recent.map(recordRow).join('')
+                : '<div class="empty-state">No recent translations.</div>';
+        if ($('#savedPhrases'))
+            $('#savedPhrases').innerHTML = saved.length
+                ? saved.map(recordRow).join('')
+                : '<div class="empty-state">No favourites yet.</div>';
+        $$('[data-del]').forEach((b) => (b.onclick = () => removeRecord(b.dataset.del)));
+        $$('[data-fav]').forEach(
+            (b) => (b.onclick = () => favorite(b.dataset.fav, b.textContent === '☆'))
+        );
+    }
+    $('#savePhrase')?.addEventListener(
+        'click',
+        () =>
+            current &&
+            saveRecord({
+                record_type: 'phrase',
+                title: current.source,
+                content: current.translation,
+                source_language: current.from,
+                target_language: current.to,
+                scenario: current.scenario,
+                confidence: current.confidence,
+                is_favorite: true,
+                metadata: {}
+            }).then(() => toast('Phrase saved as a favourite.'))
+    );
 
-async function loadGlossary(){if(!window.JOM.authenticated||!$('#glossaryList'))return;const r=await fetch('api/glossary.php');if(!r.ok)return;const terms=(await r.json()).terms;$('#glossaryList').innerHTML=terms.map(t=>'<button class="record-item term-button" data-term="'+escapeHtml(t.term)+'"><div><strong>'+escapeHtml(t.term)+'</strong><small>'+escapeHtml(t.explanation)+'</small></div><span class="pill">'+escapeHtml(t.category)+'</span></button>').join('');$$('[data-term]').forEach(b=>b.onclick=()=>track('difficult_term',$('#targetLanguage').value,translationScenario,b.dataset.term));}
-function assistanceCacheKey(destination=$('#packDestination').value.trim()||'Malaysia'){return 'jompack:'+destination+':'+$('#scenarioSelect').value+':'+$('#assistantLanguage').value;}
-function setAssistantStage(stage){['assistantStepOne','assistantStepTwo','assistantStepThree'].forEach((id,index)=>{const item=$('#'+id);if(!item)return;item.classList.toggle('done',index+1<stage);item.classList.toggle('active',index+1===stage);});}
-function resetAssistantGuide(){scenarioPhrases=[];setAssistantStage(2);if($('#scenarioSteps')){$('#scenarioSteps').hidden=true;$('#scenarioSteps').innerHTML='';}if($('#saveDestinationPack'))$('#saveDestinationPack').hidden=true;if($('#packStatus'))$('#packStatus').textContent='Choose your destination and language, then build the guide.';}
-async function buildAssistantGuide(){setAssistantStage(2);await loadAssistance();const ready=scenarioPhrases.length>0;if($('#scenarioSteps'))$('#scenarioSteps').hidden=!ready;if($('#saveDestinationPack'))$('#saveDestinationPack').hidden=!ready;setAssistantStage(ready?3:2);}
-// TRAVEL GUIDES: request phrases for the chosen destination, situation and language.
-// Follow this function's cache path to explain how previously loaded packs work offline.
-async function loadAssistance(){if(!$('#scenarioSelect'))return;const scenario=$('#scenarioSelect').value,destination=$('#packDestination').value.trim()||'Malaysia',language=$('#assistantLanguage').value;try{const r=await fetch('api/assistance.php?scenario='+encodeURIComponent(scenario)+'&destination='+encodeURIComponent(destination)+'&language='+encodeURIComponent(language));if(!r.ok)throw new Error(await message(r,'Assistant unavailable.'));const data=await r.json();scenarioPhrases=data.phrases;assistantResolvedDestination=data.resolved_destination;$('#packStatus').textContent=data.fallback_used?'No dedicated pack exists for '+destination+'. Showing the Malaysia pack; saving will correctly store it as Malaysia.':'Loaded '+data.resolved_destination+' · '+(names[language]||language);}catch(e){const candidates=[destination,'Malaysia'];scenarioPhrases=[];for(const candidate of candidates){try{scenarioPhrases=JSON.parse(localStorage.getItem(assistanceCacheKey(candidate))||'[]');if(scenarioPhrases.length){assistantResolvedDestination=candidate;break;}}catch(ignore){scenarioPhrases=[];}}if(scenarioPhrases.length){toast('Using the saved offline phrase pack.');$('#packStatus').textContent='Offline pack · '+assistantResolvedDestination+' · '+(names[language]||language);}else toast(e.message);}$('#scenarioSteps').innerHTML=scenarioPhrases.length?scenarioPhrases.map((p,i)=>'<div class="scenario-step"><strong>'+(i+1)+'. '+escapeHtml(p.source_text)+'</strong><span>'+escapeHtml(p.translated_text)+'</span><button class="chip" data-assist="'+i+'">Use</button><button class="chip" data-quick="'+i+'">Quick reply</button></div>').join(''):'<div class="empty-state">No phrases for this selection.</div>';$('#culturalTips').innerHTML=scenarioPhrases.map(p=>p.cultural_tip).filter(Boolean).map(escapeHtml).join('<br>');$$('[data-assist]').forEach(b=>b.onclick=()=>{$('#sourceText').value=scenarioPhrases[Number(b.dataset.assist)].source_text;$('#sourceLanguage').value='en';$('#targetLanguage').value=language;translationScenario=scenario;showPage('communication');invalidate();});$$('[data-quick]').forEach(b=>{b.onclick=()=>{const p=scenarioPhrases[Number(b.dataset.quick)];openOverlay(p.translated_text,p.suggested_reply||'','Two-way quick reply');};});}
-$$('[data-scenario-choice]').forEach(button=>button.addEventListener('click',()=>{const scenario=button.dataset.scenarioChoice;if(!$('#scenarioSelect'))return;$('#scenarioSelect').value=scenario;$$('[data-scenario-choice]').forEach(item=>item.classList.toggle('active',item===button));if($('#assistantBuilder'))$('#assistantBuilder').hidden=false;resetAssistantGuide();}));
-$('#scenarioSelect')?.addEventListener('change',event=>{$$('[data-scenario-choice]').forEach(button=>button.classList.toggle('active',button.dataset.scenarioChoice===event.target.value));resetAssistantGuide();});
-async function translateAssistanceMessage(text,scenario){const to=$('#assistantLanguage').value,r=await jsonFetch('api/translate.php',{method:'POST',body:JSON.stringify({text,from:'en',to,scenario})});if(!r.ok)throw new Error(await message(r,'Could not translate this assistance message.'));return (await r.json()).translation;}
-$('#loadScenario')?.addEventListener('click',buildAssistantGuide);$('#assistantLanguage')?.addEventListener('change',resetAssistantGuide);$('#packDestination')?.addEventListener('input',resetAssistantGuide);$('#saveDestinationPack')?.addEventListener('click',async()=>{const destination=assistantResolvedDestination;if(!scenarioPhrases.length){toast('Build a phrase pack before saving it.');return;}localStorage.setItem(assistanceCacheKey(destination),JSON.stringify(scenarioPhrases));if(window.JOM.role==='tourist'){const r=await jsonFetch('api/tourist.php',{method:'POST',body:JSON.stringify({action:'add_pack',destination,scenario:$('#scenarioSelect').value,language_code:$('#assistantLanguage').value,csrf:window.JOM.csrf})});if(!r.ok){toast(await message(r,'Could not save pack.'));return;}loadProfile();}toast(destination+' phrase pack saved on this device.');});$('#prepareNeeds')?.addEventListener('click',async()=>{const parts=[];if($('#assistDietary').value.trim())parts.push('My dietary requirement is '+$('#assistDietary').value.trim()+'.');if($('#assistAllergy').value.trim())parts.push('I am allergic to '+$('#assistAllergy').value.trim()+'.');if($('#assistReligious').value.trim())parts.push('My religious food requirement is '+$('#assistReligious').value.trim()+'.');parts.push('I prefer '+$('#assistSpice').value.toLowerCase()+' food.');const source=parts.join(' ');try{openOverlay(source,await translateAssistanceMessage(source,'restaurant'),'Show this request when ordering.');}catch(e){toast(e.message);}});
-function emergencySource(){const details=$('#assistEmergency')?.value.trim()||'',needs=[$('#assistDietary')?.value.trim()&&'Dietary: '+$('#assistDietary').value.trim(),$('#assistAllergy')?.value.trim()&&'Allergy: '+$('#assistAllergy').value.trim(),$('#assistReligious')?.value.trim()&&'Religious requirement: '+$('#assistReligious').value.trim()].filter(Boolean);return ['I need emergency help.',details,...needs,'Please call the emergency services.'].filter(Boolean).join(' ');}
-function showEmergencyCard(card){openOverlay(card.source,card.translation,'Malaysia emergency number: 999 · Call emergency services for immediate danger.');}
-async function buildEmergencyCard(){const source=emergencySource();let translation='Saya memerlukan bantuan kecemasan. Sila hubungi perkhidmatan kecemasan di 999.';try{translation=await translateAssistanceMessage(source,'emergency');}catch(e){toast('Using the built-in Malay emergency phrase.');}return{source,translation,saved_at:new Date().toISOString()};}
-$('#generateEmergency')?.addEventListener('click',async()=>showEmergencyCard(await buildEmergencyCard()));
-$('#saveEmergencyCard')?.addEventListener('click',async()=>{const card=await buildEmergencyCard();localStorage.setItem(emergencyKey,JSON.stringify(card));$('#openSavedEmergency').hidden=false;$('#emergencySaveStatus').textContent='Emergency card saved on this device · '+new Date(card.saved_at).toLocaleString();toast('Emergency card saved on this device.');});
-$('#openSavedEmergency')?.addEventListener('click',()=>{try{const card=JSON.parse(localStorage.getItem(emergencyKey)||'null');if(card)showEmergencyCard(card);}catch(e){toast('The saved emergency card could not be opened.');}});
-try{const savedEmergency=JSON.parse(localStorage.getItem(emergencyKey)||'null');if(savedEmergency){$('#openSavedEmergency').hidden=false;$('#emergencySaveStatus').textContent='Emergency card saved on this device · '+new Date(savedEmergency.saved_at).toLocaleString();}}catch(e){}
+    async function loadGlossary() {
+        if (!window.JOM.authenticated || !$('#glossaryList')) return;
+        const r = await fetch('api/glossary.php');
+        if (!r.ok) return;
+        const terms = (await r.json()).terms;
+        $('#glossaryList').innerHTML = terms
+            .map(
+                (t) =>
+                    '<button class="record-item term-button" data-term="' +
+                    escapeHtml(t.term) +
+                    '"><div><strong>' +
+                    escapeHtml(t.term) +
+                    '</strong><small>' +
+                    escapeHtml(t.explanation) +
+                    '</small></div><span class="pill">' +
+                    escapeHtml(t.category) +
+                    '</span></button>'
+            )
+            .join('');
+        $$('[data-term]').forEach(
+            (b) =>
+                (b.onclick = () =>
+                    track(
+                        'difficult_term',
+                        $('#targetLanguage').value,
+                        translationScenario,
+                        b.dataset.term
+                    ))
+        );
+    }
+    function assistanceCacheKey(destination = $('#packDestination').value.trim() || 'Malaysia') {
+        return (
+            'jompack:' +
+            destination +
+            ':' +
+            $('#scenarioSelect').value +
+            ':' +
+            $('#assistantLanguage').value
+        );
+    }
+    function setAssistantStage(stage) {
+        ['assistantStepOne', 'assistantStepTwo', 'assistantStepThree'].forEach((id, index) => {
+            const item = $('#' + id);
+            if (!item) return;
+            item.classList.toggle('done', index + 1 < stage);
+            item.classList.toggle('active', index + 1 === stage);
+        });
+    }
+    function resetAssistantGuide() {
+        scenarioPhrases = [];
+        setAssistantStage(2);
+        if ($('#scenarioSteps')) {
+            $('#scenarioSteps').hidden = true;
+            $('#scenarioSteps').innerHTML = '';
+        }
+        if ($('#saveDestinationPack')) $('#saveDestinationPack').hidden = true;
+        if ($('#packStatus'))
+            $('#packStatus').textContent =
+                'Choose your destination and language, then build the guide.';
+    }
+    async function buildAssistantGuide() {
+        setAssistantStage(2);
+        await loadAssistance();
+        const ready = scenarioPhrases.length > 0;
+        if ($('#scenarioSteps')) $('#scenarioSteps').hidden = !ready;
+        if ($('#saveDestinationPack')) $('#saveDestinationPack').hidden = !ready;
+        setAssistantStage(ready ? 3 : 2);
+    }
+    // TRAVEL GUIDES: request phrases for the chosen destination, situation and language.
+    // Follow this function's cache path to explain how previously loaded packs work offline.
+    async function loadAssistance() {
+        if (!$('#scenarioSelect')) return;
+        const scenario = $('#scenarioSelect').value,
+            destination = $('#packDestination').value.trim() || 'Malaysia',
+            language = $('#assistantLanguage').value;
+        try {
+            const r = await fetch(
+                'api/assistance.php?scenario=' +
+                    encodeURIComponent(scenario) +
+                    '&destination=' +
+                    encodeURIComponent(destination) +
+                    '&language=' +
+                    encodeURIComponent(language)
+            );
+            if (!r.ok) throw new Error(await message(r, 'Assistant unavailable.'));
+            const data = await r.json();
+            scenarioPhrases = data.phrases;
+            assistantResolvedDestination = data.resolved_destination;
+            $('#packStatus').textContent = data.fallback_used
+                ? 'No dedicated pack exists for ' +
+                  destination +
+                  '. Showing the Malaysia pack; saving will correctly store it as Malaysia.'
+                : 'Loaded ' + data.resolved_destination + ' · ' + (names[language] || language);
+        } catch (e) {
+            const candidates = [destination, 'Malaysia'];
+            scenarioPhrases = [];
+            for (const candidate of candidates) {
+                try {
+                    scenarioPhrases = JSON.parse(
+                        localStorage.getItem(assistanceCacheKey(candidate)) || '[]'
+                    );
+                    if (scenarioPhrases.length) {
+                        assistantResolvedDestination = candidate;
+                        break;
+                    }
+                } catch (ignore) {
+                    scenarioPhrases = [];
+                }
+            }
+            if (scenarioPhrases.length) {
+                toast('Using the saved offline phrase pack.');
+                $('#packStatus').textContent =
+                    'Offline pack · ' +
+                    assistantResolvedDestination +
+                    ' · ' +
+                    (names[language] || language);
+            } else toast(e.message);
+        }
+        $('#scenarioSteps').innerHTML = scenarioPhrases.length
+            ? scenarioPhrases
+                  .map(
+                      (p, i) =>
+                          '<div class="scenario-step"><strong>' +
+                          (i + 1) +
+                          '. ' +
+                          escapeHtml(p.source_text) +
+                          '</strong><span>' +
+                          escapeHtml(p.translated_text) +
+                          '</span><button class="chip" data-assist="' +
+                          i +
+                          '">Use</button><button class="chip" data-quick="' +
+                          i +
+                          '">Quick reply</button></div>'
+                  )
+                  .join('')
+            : '<div class="empty-state">No phrases for this selection.</div>';
+        $('#culturalTips').innerHTML = scenarioPhrases
+            .map((p) => p.cultural_tip)
+            .filter(Boolean)
+            .map(escapeHtml)
+            .join('<br>');
+        $$('[data-assist]').forEach(
+            (b) =>
+                (b.onclick = () => {
+                    $('#sourceText').value = scenarioPhrases[Number(b.dataset.assist)].source_text;
+                    $('#sourceLanguage').value = 'en';
+                    $('#targetLanguage').value = language;
+                    translationScenario = scenario;
+                    showPage('communication');
+                    invalidate();
+                })
+        );
+        $$('[data-quick]').forEach((b) => {
+            b.onclick = () => {
+                const p = scenarioPhrases[Number(b.dataset.quick)];
+                openOverlay(p.translated_text, p.suggested_reply || '', 'Two-way quick reply');
+            };
+        });
+    }
+    $$('[data-scenario-choice]').forEach((button) =>
+        button.addEventListener('click', () => {
+            const scenario = button.dataset.scenarioChoice;
+            if (!$('#scenarioSelect')) return;
+            $('#scenarioSelect').value = scenario;
+            $$('[data-scenario-choice]').forEach((item) =>
+                item.classList.toggle('active', item === button)
+            );
+            if ($('#assistantBuilder')) $('#assistantBuilder').hidden = false;
+            resetAssistantGuide();
+        })
+    );
+    $('#scenarioSelect')?.addEventListener('change', (event) => {
+        $$('[data-scenario-choice]').forEach((button) =>
+            button.classList.toggle('active', button.dataset.scenarioChoice === event.target.value)
+        );
+        resetAssistantGuide();
+    });
+    async function translateAssistanceMessage(text, scenario) {
+        const to = $('#assistantLanguage').value,
+            r = await jsonFetch('api/translate.php', {
+                method: 'POST',
+                body: JSON.stringify({ text, from: 'en', to, scenario })
+            });
+        if (!r.ok)
+            throw new Error(await message(r, 'Could not translate this assistance message.'));
+        return (await r.json()).translation;
+    }
+    $('#loadScenario')?.addEventListener('click', buildAssistantGuide);
+    $('#assistantLanguage')?.addEventListener('change', resetAssistantGuide);
+    $('#packDestination')?.addEventListener('input', resetAssistantGuide);
+    $('#saveDestinationPack')?.addEventListener('click', async () => {
+        const destination = assistantResolvedDestination;
+        if (!scenarioPhrases.length) {
+            toast('Build a phrase pack before saving it.');
+            return;
+        }
+        localStorage.setItem(assistanceCacheKey(destination), JSON.stringify(scenarioPhrases));
+        if (window.JOM.role === 'tourist') {
+            const r = await jsonFetch('api/tourist.php', {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'add_pack',
+                    destination,
+                    scenario: $('#scenarioSelect').value,
+                    language_code: $('#assistantLanguage').value,
+                    csrf: window.JOM.csrf
+                })
+            });
+            if (!r.ok) {
+                toast(await message(r, 'Could not save pack.'));
+                return;
+            }
+            loadProfile();
+        }
+        toast(destination + ' phrase pack saved on this device.');
+    });
+    $('#prepareNeeds')?.addEventListener('click', async () => {
+        const parts = [];
+        if ($('#assistDietary').value.trim())
+            parts.push('My dietary requirement is ' + $('#assistDietary').value.trim() + '.');
+        if ($('#assistAllergy').value.trim())
+            parts.push('I am allergic to ' + $('#assistAllergy').value.trim() + '.');
+        if ($('#assistReligious').value.trim())
+            parts.push(
+                'My religious food requirement is ' + $('#assistReligious').value.trim() + '.'
+            );
+        parts.push('I prefer ' + $('#assistSpice').value.toLowerCase() + ' food.');
+        const source = parts.join(' ');
+        try {
+            openOverlay(
+                source,
+                await translateAssistanceMessage(source, 'restaurant'),
+                'Show this request when ordering.'
+            );
+        } catch (e) {
+            toast(e.message);
+        }
+    });
+    function emergencySource() {
+        const details = $('#assistEmergency')?.value.trim() || '',
+            needs = [
+                $('#assistDietary')?.value.trim() && 'Dietary: ' + $('#assistDietary').value.trim(),
+                $('#assistAllergy')?.value.trim() && 'Allergy: ' + $('#assistAllergy').value.trim(),
+                $('#assistReligious')?.value.trim() &&
+                    'Religious requirement: ' + $('#assistReligious').value.trim()
+            ].filter(Boolean);
+        return ['I need emergency help.', details, ...needs, 'Please call the emergency services.']
+            .filter(Boolean)
+            .join(' ');
+    }
+    function showEmergencyCard(card) {
+        openOverlay(
+            card.source,
+            card.translation,
+            'Malaysia emergency number: 999 · Call emergency services for immediate danger.'
+        );
+    }
+    async function buildEmergencyCard() {
+        const source = emergencySource();
+        let translation =
+            'Saya memerlukan bantuan kecemasan. Sila hubungi perkhidmatan kecemasan di 999.';
+        try {
+            translation = await translateAssistanceMessage(source, 'emergency');
+        } catch (e) {
+            toast('Using the built-in Malay emergency phrase.');
+        }
+        return { source, translation, saved_at: new Date().toISOString() };
+    }
+    $('#generateEmergency')?.addEventListener('click', async () =>
+        showEmergencyCard(await buildEmergencyCard())
+    );
+    $('#saveEmergencyCard')?.addEventListener('click', async () => {
+        const card = await buildEmergencyCard();
+        localStorage.setItem(emergencyKey, JSON.stringify(card));
+        $('#openSavedEmergency').hidden = false;
+        $('#emergencySaveStatus').textContent =
+            'Emergency card saved on this device · ' + new Date(card.saved_at).toLocaleString();
+        toast('Emergency card saved on this device.');
+    });
+    $('#openSavedEmergency')?.addEventListener('click', () => {
+        try {
+            const card = JSON.parse(localStorage.getItem(emergencyKey) || 'null');
+            if (card) showEmergencyCard(card);
+        } catch (e) {
+            toast('The saved emergency card could not be opened.');
+        }
+    });
+    try {
+        const savedEmergency = JSON.parse(localStorage.getItem(emergencyKey) || 'null');
+        if (savedEmergency) {
+            $('#openSavedEmergency').hidden = false;
+            $('#emergencySaveStatus').textContent =
+                'Emergency card saved on this device · ' +
+                new Date(savedEmergency.saved_at).toLocaleString();
+        }
+    } catch (e) {}
 
-async function loadPreferences(){let p=privacy();const r=await fetch('api/preferences.php');if(r.ok)p=(await r.json()).preferences;if($('#historyConsent'))$('#historyConsent').checked=!!p.save_history;if($('#analyticsConsent'))$('#analyticsConsent').checked=!!p.analytics;}
-async function savePreferences(){const p={save_history:$('#historyConsent').checked,analytics:$('#analyticsConsent').checked};if(!window.JOM.authenticated)localStorage.setItem(privacyKey,JSON.stringify(p));const r=await jsonFetch('api/preferences.php',{method:'POST',body:JSON.stringify({...p,csrf:window.JOM.csrf})});toast(r.ok?'Privacy choices saved.':await message(r,'Could not save privacy choices.'));}
-$('#historyConsent')?.addEventListener('change',savePreferences);$('#analyticsConsent')?.addEventListener('change',savePreferences);
-// Analytics are opt-in: do not submit events unless the consent checkbox is enabled.
-async function track(event,language,scenario,term='',confidence=null){if(!$('#analyticsConsent')?.checked)return;await jsonFetch('api/analytics.php',{method:'POST',body:JSON.stringify({event_type:event,language_code:window.JomCore.normalizedAnalyticsLanguage(language),scenario,location_label:$('#packDestination')?.value||'',term_label:term,confidence,csrf:window.JOM.csrf})});}
-// Traveller-specific preferences come from api/tourist.php; account identity/photo
-// management is handled separately by api/profile.php.
-async function loadProfile(){
- if(window.JOM.role!=='tourist'||!$('#profileName'))return;
- const r=await fetch('api/tourist.php');if(!r.ok)return;
- const d=await r.json(),p=d.profile||{};
- const map={profileName:'full_name',profileLanguage:'preferred_language',profileDestination:'default_destination',profileAccessibility:'accessibility_notes',profileDietary:'dietary_notes',profileAllergy:'allergy_notes',profileEmergencyContact:'emergency_contact',profileEmergencyDetails:'emergency_details'};
- Object.entries(map).forEach(([id,k])=>{if($('#'+id))$('#'+id).value=p[k]||'';});
- if($('#profileLargeText'))$('#profileLargeText').checked=!!Number(p.large_text);
- if($('#profileVoice'))$('#profileVoice').checked=!!Number(p.voice_playback);
- document.body.classList.toggle('large-text',!!Number(p.large_text));
- if($('#journeyLanguageSummary'))$('#journeyLanguageSummary').textContent=names[p.preferred_language]||'English';
- if($('#journeyDestinationSummary'))$('#journeyDestinationSummary').textContent=p.default_destination||'Not set';
- if($('#journeyAccessibilitySummary'))$('#journeyAccessibilitySummary').textContent=p.accessibility_notes?'Preferences saved':'Standard';
- if($('#destinationPacks'))$('#destinationPacks').innerHTML=d.packs.length?d.packs.map(x=>'<div class="record-item"><div><strong>'+escapeHtml(x.destination)+'</strong><small>'+escapeHtml(x.scenario)+' · '+escapeHtml(names[x.language_code]||x.language_code)+'</small></div><button aria-label="Remove destination pack" data-remove-pack="'+escapeHtml(x.destination)+'" data-remove-scenario="'+escapeHtml(x.scenario)+'" data-remove-language="'+escapeHtml(x.language_code)+'">×</button></div>').join(''):'<div class="empty-state">No destination packs.</div>';
- if($('#personalRecommendations'))$('#personalRecommendations').innerHTML=d.recommendations?.length?d.recommendations.map(x=>'<button class="scenario-step" data-recommend="'+escapeHtml(x.source_text)+'" data-recommend-scenario="'+escapeHtml(x.scenario)+'" data-recommend-language="'+escapeHtml(p.preferred_language||'en')+'"><strong>'+escapeHtml(x.source_text)+'</strong><span>Recommended for '+escapeHtml(x.destination)+' · translate to '+escapeHtml(names[p.preferred_language]||'English')+'</span></button>').join(''):'<div class="empty-state">Save a destination and preferences to receive relevant phrases.</div>';
- $$('[data-recommend]').forEach(b=>b.onclick=()=>{$('#sourceText').value=b.dataset.recommend;$('#sourceLanguage').value='en';$('#targetLanguage').value=b.dataset.recommendLanguage;translationScenario=b.dataset.recommendScenario||'culture';showPage('communication');invalidate();});
- $$('[data-remove-pack]').forEach(b=>b.onclick=async()=>{await jsonFetch('api/tourist.php',{method:'POST',body:JSON.stringify({action:'remove_pack',destination:b.dataset.removePack,scenario:b.dataset.removeScenario,language_code:b.dataset.removeLanguage,csrf:window.JOM.csrf})});loadProfile();});
-}
-$('#saveProfile')?.addEventListener('click',async()=>{const ids=['profileName','profileLanguage','profileDestination','profileAccessibility','profileDietary','profileAllergy','profileEmergencyContact','profileEmergencyDetails'];const keys=['full_name','preferred_language','default_destination','accessibility_notes','dietary_notes','allergy_notes','emergency_contact','emergency_details'];const body={action:'save_profile',csrf:window.JOM.csrf};ids.forEach((id,i)=>body[keys[i]]=$('#'+id).value);body.large_text=$('#profileLargeText').checked;body.voice_playback=$('#profileVoice').checked;const r=await jsonFetch('api/tourist.php',{method:'POST',body:JSON.stringify(body)});toast(r.ok?'Profile saved.':await message(r,'Could not save profile.'));if(r.ok){if($('#accountFullName'))$('#accountFullName').value=body.full_name;if($('#accountLanguage'))$('#accountLanguage').value=body.preferred_language;if($('#profileNameLabel'))$('#profileNameLabel').textContent=body.full_name;if($('#profileSummaryName'))$('#profileSummaryName').textContent=body.full_name;loadProfile();}});$('#deleteJourneyData')?.addEventListener('click',async()=>{if(!confirm('Delete your profile preferences, records, offline packs and privacy choices?'))return;let ok=true,error='Could not delete data.';if(window.JOM.role==='tourist'){const r=await jsonFetch('api/tourist.php',{method:'DELETE',body:JSON.stringify({csrf:window.JOM.csrf})});ok=r.ok;if(!ok)error=await message(r,error);}if(ok){records=[];for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key===storageKey||key===privacyKey||key?.startsWith('jompack:'))localStorage.removeItem(key);}renderRecords();loadPreferences();loadProfile();}toast(ok?'Journey data deleted.':error);});
+    async function loadPreferences() {
+        let p = privacy();
+        const r = await fetch('api/preferences.php');
+        if (r.ok) p = (await r.json()).preferences;
+        if ($('#historyConsent')) $('#historyConsent').checked = !!p.save_history;
+        if ($('#analyticsConsent')) $('#analyticsConsent').checked = !!p.analytics;
+    }
+    async function savePreferences() {
+        const p = {
+            save_history: $('#historyConsent').checked,
+            analytics: $('#analyticsConsent').checked
+        };
+        if (!window.JOM.authenticated) localStorage.setItem(privacyKey, JSON.stringify(p));
+        const r = await jsonFetch('api/preferences.php', {
+            method: 'POST',
+            body: JSON.stringify({ ...p, csrf: window.JOM.csrf })
+        });
+        toast(
+            r.ok ? 'Privacy choices saved.' : await message(r, 'Could not save privacy choices.')
+        );
+    }
+    $('#historyConsent')?.addEventListener('change', savePreferences);
+    $('#analyticsConsent')?.addEventListener('change', savePreferences);
+    // Analytics are opt-in: do not submit events unless the consent checkbox is enabled.
+    async function track(event, language, scenario, term = '', confidence = null) {
+        if (!$('#analyticsConsent')?.checked) return;
+        await jsonFetch('api/analytics.php', {
+            method: 'POST',
+            body: JSON.stringify({
+                event_type: event,
+                language_code: window.JomCore.normalizedAnalyticsLanguage(language),
+                scenario,
+                location_label: $('#packDestination')?.value || '',
+                term_label: term,
+                confidence,
+                csrf: window.JOM.csrf
+            })
+        });
+    }
+    // Traveller-specific preferences come from api/tourist.php; account identity/photo
+    // management is handled separately by api/profile.php.
+    async function loadProfile() {
+        if (window.JOM.role !== 'tourist' || !$('#profileName')) return;
+        const r = await fetch('api/tourist.php');
+        if (!r.ok) return;
+        const d = await r.json(),
+            p = d.profile || {};
+        const map = {
+            profileName: 'full_name',
+            profileLanguage: 'preferred_language',
+            profileDestination: 'default_destination',
+            profileAccessibility: 'accessibility_notes',
+            profileDietary: 'dietary_notes',
+            profileAllergy: 'allergy_notes',
+            profileEmergencyContact: 'emergency_contact',
+            profileEmergencyDetails: 'emergency_details'
+        };
+        Object.entries(map).forEach(([id, k]) => {
+            if ($('#' + id)) $('#' + id).value = p[k] || '';
+        });
+        if ($('#profileLargeText')) $('#profileLargeText').checked = !!Number(p.large_text);
+        if ($('#profileVoice')) $('#profileVoice').checked = !!Number(p.voice_playback);
+        document.body.classList.toggle('large-text', !!Number(p.large_text));
+        if ($('#journeyLanguageSummary'))
+            $('#journeyLanguageSummary').textContent = names[p.preferred_language] || 'English';
+        if ($('#journeyDestinationSummary'))
+            $('#journeyDestinationSummary').textContent = p.default_destination || 'Not set';
+        if ($('#journeyAccessibilitySummary'))
+            $('#journeyAccessibilitySummary').textContent = p.accessibility_notes
+                ? 'Preferences saved'
+                : 'Standard';
+        if ($('#destinationPacks'))
+            $('#destinationPacks').innerHTML = d.packs.length
+                ? d.packs
+                      .map(
+                          (x) =>
+                              '<div class="record-item"><div><strong>' +
+                              escapeHtml(x.destination) +
+                              '</strong><small>' +
+                              escapeHtml(x.scenario) +
+                              ' · ' +
+                              escapeHtml(names[x.language_code] || x.language_code) +
+                              '</small></div><button aria-label="Remove destination pack" data-remove-pack="' +
+                              escapeHtml(x.destination) +
+                              '" data-remove-scenario="' +
+                              escapeHtml(x.scenario) +
+                              '" data-remove-language="' +
+                              escapeHtml(x.language_code) +
+                              '">×</button></div>'
+                      )
+                      .join('')
+                : '<div class="empty-state">No destination packs.</div>';
+        if ($('#personalRecommendations'))
+            $('#personalRecommendations').innerHTML = d.recommendations?.length
+                ? d.recommendations
+                      .map(
+                          (x) =>
+                              '<button class="scenario-step" data-recommend="' +
+                              escapeHtml(x.source_text) +
+                              '" data-recommend-scenario="' +
+                              escapeHtml(x.scenario) +
+                              '" data-recommend-language="' +
+                              escapeHtml(p.preferred_language || 'en') +
+                              '"><strong>' +
+                              escapeHtml(x.source_text) +
+                              '</strong><span>Recommended for ' +
+                              escapeHtml(x.destination) +
+                              ' · translate to ' +
+                              escapeHtml(names[p.preferred_language] || 'English') +
+                              '</span></button>'
+                      )
+                      .join('')
+                : '<div class="empty-state">Save a destination and preferences to receive relevant phrases.</div>';
+        $$('[data-recommend]').forEach(
+            (b) =>
+                (b.onclick = () => {
+                    $('#sourceText').value = b.dataset.recommend;
+                    $('#sourceLanguage').value = 'en';
+                    $('#targetLanguage').value = b.dataset.recommendLanguage;
+                    translationScenario = b.dataset.recommendScenario || 'culture';
+                    showPage('communication');
+                    invalidate();
+                })
+        );
+        $$('[data-remove-pack]').forEach(
+            (b) =>
+                (b.onclick = async () => {
+                    await jsonFetch('api/tourist.php', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'remove_pack',
+                            destination: b.dataset.removePack,
+                            scenario: b.dataset.removeScenario,
+                            language_code: b.dataset.removeLanguage,
+                            csrf: window.JOM.csrf
+                        })
+                    });
+                    loadProfile();
+                })
+        );
+    }
+    $('#saveProfile')?.addEventListener('click', async () => {
+        const ids = [
+            'profileName',
+            'profileLanguage',
+            'profileDestination',
+            'profileAccessibility',
+            'profileDietary',
+            'profileAllergy',
+            'profileEmergencyContact',
+            'profileEmergencyDetails'
+        ];
+        const keys = [
+            'full_name',
+            'preferred_language',
+            'default_destination',
+            'accessibility_notes',
+            'dietary_notes',
+            'allergy_notes',
+            'emergency_contact',
+            'emergency_details'
+        ];
+        const body = { action: 'save_profile', csrf: window.JOM.csrf };
+        ids.forEach((id, i) => (body[keys[i]] = $('#' + id).value));
+        body.large_text = $('#profileLargeText').checked;
+        body.voice_playback = $('#profileVoice').checked;
+        const r = await jsonFetch('api/tourist.php', {
+            method: 'POST',
+            body: JSON.stringify(body)
+        });
+        toast(r.ok ? 'Profile saved.' : await message(r, 'Could not save profile.'));
+        if (r.ok) {
+            if ($('#accountFullName')) $('#accountFullName').value = body.full_name;
+            if ($('#accountLanguage')) $('#accountLanguage').value = body.preferred_language;
+            if ($('#profileNameLabel')) $('#profileNameLabel').textContent = body.full_name;
+            if ($('#profileSummaryName')) $('#profileSummaryName').textContent = body.full_name;
+            loadProfile();
+        }
+    });
+    $('#deleteJourneyData')?.addEventListener('click', async () => {
+        if (
+            !confirm('Delete your profile preferences, records, offline packs and privacy choices?')
+        )
+            return;
+        let ok = true,
+            error = 'Could not delete data.';
+        if (window.JOM.role === 'tourist') {
+            const r = await jsonFetch('api/tourist.php', {
+                method: 'DELETE',
+                body: JSON.stringify({ csrf: window.JOM.csrf })
+            });
+            ok = r.ok;
+            if (!ok) error = await message(r, error);
+        }
+        if (ok) {
+            records = [];
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key === storageKey || key === privacyKey || key?.startsWith('jompack:'))
+                    localStorage.removeItem(key);
+            }
+            renderRecords();
+            loadPreferences();
+            loadProfile();
+        }
+        toast(ok ? 'Journey data deleted.' : error);
+    });
 
-function renderProfileImage(path){
- const name=$('#accountFullName')?.value||$('#profileSummaryName')?.textContent||'TourLingo user';
- const initial=(name.trim().charAt(0)||'T').toUpperCase();
- ['profileAvatar','profilePhotoPreview','topbarProfileAvatar'].forEach(id=>{
-  const target=$('#'+id);if(!target)return;
-  target.replaceChildren();
-  if(path){const image=document.createElement('img');image.src=path;image.alt=id==='topbarProfileAvatar'?'':name+' profile picture';target.appendChild(image);}
-  else{const fallback=document.createElement('span');fallback.textContent=initial;target.appendChild(fallback);}
- });
-}
-async function loadAccountProfile(){
- if(!$('#accountFullName'))return;
- const r=await fetch('api/profile.php');if(!r.ok)return;
- const d=await r.json(),p=d.profile||{};
- $('#accountFullName').value=p.full_name||'';
- $('#accountEmail').value=p.email||'';
- $('#accountLanguage').value=p.preferred_language||'en';
- renderProfileImage(p.profile_image||'');
-}
-let profilePicturePreview='';
-$$('[data-profile-section]').forEach(button=>button.addEventListener('click',()=>{const cards=$$('.profile-content > article'),target=cards[Number(button.dataset.profileSection)];scrollToSection(target,button.closest('.profile-section-nav'));}));
-const profileDropzone=$('.profile-photo-editor');
-if(profileDropzone){
- ['dragenter','dragover'].forEach(type=>profileDropzone.addEventListener(type,event=>{event.preventDefault();profileDropzone.classList.add('drag-active');}));
- ['dragleave','drop'].forEach(type=>profileDropzone.addEventListener(type,event=>{event.preventDefault();profileDropzone.classList.remove('drag-active');}));
- profileDropzone.addEventListener('drop',event=>{const file=event.dataTransfer?.files?.[0],input=$('#profilePictureInput');if(!file||!input)return;const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
-}
-$('#profilePictureInput')?.addEventListener('change',event=>{
- const input=event.currentTarget,file=input.files?.[0],button=$('#uploadProfilePicture'),label=$('#profilePictureName');
- if(profilePicturePreview){URL.revokeObjectURL(profilePicturePreview);profilePicturePreview='';}
- if(!file){button.disabled=true;label.textContent='No new image selected.';return;}
- if(!['image/jpeg','image/png','image/webp'].includes(file.type)){input.value='';button.disabled=true;label.textContent='Choose a JPG, PNG or WebP image.';toast('Use a JPG, PNG or WebP image.');return;}
- if(file.size>2*1024*1024){input.value='';button.disabled=true;label.textContent='Choose an image smaller than 2 MB.';toast('Profile pictures must be 2 MB or smaller.');return;}
- profilePicturePreview=URL.createObjectURL(file);const preview=$('#profilePhotoPreview');preview.replaceChildren();const image=document.createElement('img');image.src=profilePicturePreview;image.alt='Selected profile picture preview';preview.appendChild(image);label.textContent=file.name;button.disabled=false;
-});
-$('#uploadProfilePicture')?.addEventListener('click',async()=>{
- const input=$('#profilePictureInput'),file=input.files?.[0],button=$('#uploadProfilePicture');if(!file)return;
- const body=new FormData();body.append('action','upload_picture');body.append('csrf',window.JOM.csrf);body.append('profile_picture',file);
- button.disabled=true;button.textContent='Uploading…';
- try{
-  const r=await fetch('api/profile.php',{method:'POST',body}),d=await r.json();
-  if(!r.ok||!d.ok){toast(d.message||'Could not update the profile picture.');button.disabled=false;return;}
-  renderProfileImage(d.profile_image);input.value='';$('#profilePictureName').textContent='Profile picture updated.';if(profilePicturePreview){URL.revokeObjectURL(profilePicturePreview);profilePicturePreview='';}toast('Profile picture updated.');
- }catch(error){toast('Could not update the profile picture.');button.disabled=false;}
- finally{button.textContent='Upload picture';}
-});
-$('#saveAccountProfile')?.addEventListener('click',async()=>{
- const body={action:'update_account',full_name:$('#accountFullName').value,email:$('#accountEmail').value,preferred_language:$('#accountLanguage').value,csrf:window.JOM.csrf};
- const r=await jsonFetch('api/profile.php',{method:'POST',body:JSON.stringify(body)});
- if(!r.ok){toast(await message(r,'Could not save account details.'));return;}
- const d=await r.json(),p=d.profile;
- if($('#profileNameLabel'))$('#profileNameLabel').textContent=p.full_name;
- if($('#profileSummaryName'))$('#profileSummaryName').textContent=p.full_name;
- if($('#profileSummaryEmail'))$('#profileSummaryEmail').textContent=p.email;
- if($('#profileName'))$('#profileName').value=p.full_name;
- if($('#profileLanguage'))$('#profileLanguage').value=p.preferred_language;
- renderProfileImage(p.profile_image||'');
- toast('Account details saved.');
-});
-$('#changePassword')?.addEventListener('click',async()=>{
- const current=$('#currentPassword').value,next=$('#newPassword').value,confirmPassword=$('#confirmNewPassword').value;
- const r=await jsonFetch('api/profile.php',{method:'POST',body:JSON.stringify({action:'change_password',current_password:current,new_password:next,confirm_password:confirmPassword,csrf:window.JOM.csrf})});
- if(!r.ok){toast(await message(r,'Could not update password.'));return;}
- $('#currentPassword').value='';$('#newPassword').value='';$('#confirmNewPassword').value='';toast('Password updated.');
-});
+    function renderProfileImage(path) {
+        const name =
+            $('#accountFullName')?.value ||
+            $('#profileSummaryName')?.textContent ||
+            'TourLingo user';
+        const initial = (name.trim().charAt(0) || 'T').toUpperCase();
+        ['profileAvatar', 'profilePhotoPreview', 'topbarProfileAvatar'].forEach((id) => {
+            const target = $('#' + id);
+            if (!target) return;
+            target.replaceChildren();
+            if (path) {
+                const image = document.createElement('img');
+                image.src = path;
+                image.alt = id === 'topbarProfileAvatar' ? '' : name + ' profile picture';
+                target.appendChild(image);
+            } else {
+                const fallback = document.createElement('span');
+                fallback.textContent = initial;
+                target.appendChild(fallback);
+            }
+        });
+    }
+    async function loadAccountProfile() {
+        if (!$('#accountFullName')) return;
+        const r = await fetch('api/profile.php');
+        if (!r.ok) return;
+        const d = await r.json(),
+            p = d.profile || {};
+        $('#accountFullName').value = p.full_name || '';
+        $('#accountEmail').value = p.email || '';
+        $('#accountLanguage').value = p.preferred_language || 'en';
+        renderProfileImage(p.profile_image || '');
+    }
+    let profilePicturePreview = '';
+    $$('[data-profile-section]').forEach((button) =>
+        button.addEventListener('click', () => {
+            const cards = $$('.profile-content > article'),
+                target = cards[Number(button.dataset.profileSection)];
+            scrollToSection(target, button.closest('.profile-section-nav'));
+        })
+    );
+    const profileDropzone = $('.profile-photo-editor');
+    if (profileDropzone) {
+        ['dragenter', 'dragover'].forEach((type) =>
+            profileDropzone.addEventListener(type, (event) => {
+                event.preventDefault();
+                profileDropzone.classList.add('drag-active');
+            })
+        );
+        ['dragleave', 'drop'].forEach((type) =>
+            profileDropzone.addEventListener(type, (event) => {
+                event.preventDefault();
+                profileDropzone.classList.remove('drag-active');
+            })
+        );
+        profileDropzone.addEventListener('drop', (event) => {
+            const file = event.dataTransfer?.files?.[0],
+                input = $('#profilePictureInput');
+            if (!file || !input) return;
+            const transfer = new DataTransfer();
+            transfer.items.add(file);
+            input.files = transfer.files;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    }
+    $('#profilePictureInput')?.addEventListener('change', (event) => {
+        const input = event.currentTarget,
+            file = input.files?.[0],
+            button = $('#uploadProfilePicture'),
+            label = $('#profilePictureName');
+        if (profilePicturePreview) {
+            URL.revokeObjectURL(profilePicturePreview);
+            profilePicturePreview = '';
+        }
+        if (!file) {
+            button.disabled = true;
+            label.textContent = 'No new image selected.';
+            return;
+        }
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            input.value = '';
+            button.disabled = true;
+            label.textContent = 'Choose a JPG, PNG or WebP image.';
+            toast('Use a JPG, PNG or WebP image.');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            input.value = '';
+            button.disabled = true;
+            label.textContent = 'Choose an image smaller than 2 MB.';
+            toast('Profile pictures must be 2 MB or smaller.');
+            return;
+        }
+        profilePicturePreview = URL.createObjectURL(file);
+        const preview = $('#profilePhotoPreview');
+        preview.replaceChildren();
+        const image = document.createElement('img');
+        image.src = profilePicturePreview;
+        image.alt = 'Selected profile picture preview';
+        preview.appendChild(image);
+        label.textContent = file.name;
+        button.disabled = false;
+    });
+    $('#uploadProfilePicture')?.addEventListener('click', async () => {
+        const input = $('#profilePictureInput'),
+            file = input.files?.[0],
+            button = $('#uploadProfilePicture');
+        if (!file) return;
+        const body = new FormData();
+        body.append('action', 'upload_picture');
+        body.append('csrf', window.JOM.csrf);
+        body.append('profile_picture', file);
+        button.disabled = true;
+        button.textContent = 'Uploading…';
+        try {
+            const r = await fetch('api/profile.php', { method: 'POST', body }),
+                d = await r.json();
+            if (!r.ok || !d.ok) {
+                toast(d.message || 'Could not update the profile picture.');
+                button.disabled = false;
+                return;
+            }
+            renderProfileImage(d.profile_image);
+            input.value = '';
+            $('#profilePictureName').textContent = 'Profile picture updated.';
+            if (profilePicturePreview) {
+                URL.revokeObjectURL(profilePicturePreview);
+                profilePicturePreview = '';
+            }
+            toast('Profile picture updated.');
+        } catch (error) {
+            toast('Could not update the profile picture.');
+            button.disabled = false;
+        } finally {
+            button.textContent = 'Upload picture';
+        }
+    });
+    $('#saveAccountProfile')?.addEventListener('click', async () => {
+        const body = {
+            action: 'update_account',
+            full_name: $('#accountFullName').value,
+            email: $('#accountEmail').value,
+            preferred_language: $('#accountLanguage').value,
+            csrf: window.JOM.csrf
+        };
+        const r = await jsonFetch('api/profile.php', {
+            method: 'POST',
+            body: JSON.stringify(body)
+        });
+        if (!r.ok) {
+            toast(await message(r, 'Could not save account details.'));
+            return;
+        }
+        const d = await r.json(),
+            p = d.profile;
+        if ($('#profileNameLabel')) $('#profileNameLabel').textContent = p.full_name;
+        if ($('#profileSummaryName')) $('#profileSummaryName').textContent = p.full_name;
+        if ($('#profileSummaryEmail')) $('#profileSummaryEmail').textContent = p.email;
+        if ($('#profileName')) $('#profileName').value = p.full_name;
+        if ($('#profileLanguage')) $('#profileLanguage').value = p.preferred_language;
+        renderProfileImage(p.profile_image || '');
+        toast('Account details saved.');
+    });
+    $('#changePassword')?.addEventListener('click', async () => {
+        const current = $('#currentPassword').value,
+            next = $('#newPassword').value,
+            confirmPassword = $('#confirmNewPassword').value;
+        const r = await jsonFetch('api/profile.php', {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'change_password',
+                current_password: current,
+                new_password: next,
+                confirm_password: confirmPassword,
+                csrf: window.JOM.csrf
+            })
+        });
+        if (!r.ok) {
+            toast(await message(r, 'Could not update password.'));
+            return;
+        }
+        $('#currentPassword').value = '';
+        $('#newPassword').value = '';
+        $('#confirmNewPassword').value = '';
+        toast('Password updated.');
+    });
 
-function showBusinessTab(name){
- $$('[data-business-tab]').forEach(button=>{const active=button.dataset.businessTab===name;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));});
- $$('[data-business-view]').forEach(view=>view.classList.toggle('active',view.dataset.businessView===name));
- const stage={profile:1,content:2,library:2,inbox:3,reports:3}[name]??1;$$('.publish-progress > span').forEach((item,index)=>{if(index===0)return;item.classList.toggle('active',index===stage);item.classList.toggle('done',index<stage);});
-}
-$$('[data-business-tab]').forEach(button=>button.addEventListener('click',()=>showBusinessTab(button.dataset.businessTab)));
-$$('[data-open-business-tab]').forEach(button=>button.addEventListener('click',()=>showBusinessTab(button.dataset.openBusinessTab)));
+    function showBusinessTab(name) {
+        $$('[data-business-tab]').forEach((button) => {
+            const active = button.dataset.businessTab === name;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-selected', String(active));
+        });
+        $$('[data-business-view]').forEach((view) =>
+            view.classList.toggle('active', view.dataset.businessView === name)
+        );
+        const stage = { profile: 1, content: 2, library: 2, inbox: 3, reports: 3 }[name] ?? 1;
+        $$('.publish-progress > span').forEach((item, index) => {
+            if (index === 0) return;
+            item.classList.toggle('active', index === stage);
+            item.classList.toggle('done', index < stage);
+        });
+    }
+    $$('[data-business-tab]').forEach((button) =>
+        button.addEventListener('click', () => showBusinessTab(button.dataset.businessTab))
+    );
+    $$('[data-open-business-tab]').forEach((button) =>
+        button.addEventListener('click', () => showBusinessTab(button.dataset.openBusinessTab))
+    );
 
-// BUSINESS STUDIO: send an action name and CSRF token to api/business.php.
-// The API resolves ownership and approval status before changing business content.
-async function businessAction(body,success){const r=await jsonFetch('api/business.php',{method:'POST',body:JSON.stringify({...body,csrf:window.JOM.csrf})});toast(r.ok?success:await message(r,'Business update failed.'));if(r.ok)loadBusiness().then(renderBusinessInbox);}
-function updateBusinessPreview(){if($('#businessPreviewName'))$('#businessPreviewName').textContent=$('#businessName')?.value.trim()||'Your business';if($('#businessPreviewCategory'))$('#businessPreviewCategory').textContent=$('#businessCategory')?.value.trim()||'Tourism service';if($('#businessPreviewDescription'))$('#businessPreviewDescription').textContent=$('#businessDescription')?.value.trim()||'Add a description to preview your public page.';}
-function fillBusinessTranslation(d){const b=d.business,language=$('#businessContentLanguage').value,translation=(d.translations||[]).find(x=>x.language_code===language)||{};const values={businessName:b.name,businessCategory:b.category,businessAddress:b.address,businessDescription:translation.description??(language==='en'?b.description:''),businessServices:translation.service_details??(language==='en'?b.service_details:''),businessPayments:translation.payment_methods??(language==='en'?b.payment_methods:''),businessMenu:translation.menu_details??(language==='en'?b.menu_details:''),businessFacilities:translation.facility_details??(language==='en'?b.facility_details:'')};Object.entries(values).forEach(([id,value])=>{$('#'+id).value=value||'';});updateBusinessPreview();}
-['businessName','businessCategory','businessDescription'].forEach(id=>$('#'+id)?.addEventListener('input',updateBusinessPreview));
-let businessInboxFilter='all';
-function renderBusinessInbox(){const target=$('#businessInbox'),rows=window.businessData?.inbox||[];if(!target)return;const visible=businessInboxFilter==='all'?rows:rows.filter(row=>row.status===businessInboxFilter),newCount=rows.filter(row=>row.status==='new').length;if($('#businessInboxCount'))$('#businessInboxCount').textContent=newCount;target.innerHTML=visible.length?visible.map(row=>'<article class="inbox-item"><div class="inbox-item-head"><div><strong>'+escapeHtml(row.question_label)+'</strong><small>'+escapeHtml(row.category)+' · '+escapeHtml(names[row.language_code]||row.language_code||'Unknown language')+' · '+escapeHtml(new Date(row.created_at).toLocaleString())+'</small></div><span class="inbox-status '+escapeHtml(row.status)+'">'+escapeHtml(row.status.replace('_',' '))+'</span></div><div class="inbox-reply"><input data-q-reply="'+row.id+'" maxlength="1000" value="'+escapeHtml(row.reply_text||'')+'" placeholder="Write a helpful reply"><button class="secondary" type="button" data-q-progress="'+row.id+'">In progress</button><button class="primary" type="button" data-q-answer="'+row.id+'">Send answer</button></div><button class="link-button" type="button" data-q-archive="'+row.id+'">Archive</button></article>').join(''):'<div class="empty-state">No '+(businessInboxFilter==='all'?'visitor questions':businessInboxFilter.replace('_',' ')+' questions')+'. New questions will appear here.</div>';$$('[data-q-progress]').forEach(button=>button.onclick=()=>businessAction({action:'update_inquiry',id:Number(button.dataset.qProgress),status:'in_progress',reply_text:$('[data-q-reply="'+button.dataset.qProgress+'"]')?.value||''},'Question marked in progress.'));$$('[data-q-answer]').forEach(button=>button.onclick=()=>businessAction({action:'update_inquiry',id:Number(button.dataset.qAnswer),status:'answered',reply_text:$('[data-q-reply="'+button.dataset.qAnswer+'"]')?.value||''},'Reply sent to the visitor.'));$$('[data-q-archive]').forEach(button=>button.onclick=()=>businessAction({action:'update_inquiry',id:Number(button.dataset.qArchive),status:'archived',reply_text:$('[data-q-reply="'+button.dataset.qArchive+'"]')?.value||''},'Question archived.'));}
-async function loadBusiness(){if(!$('#businessName'))return;const r=await fetch('api/business.php');if(!r.ok)return;const d=await r.json();window.businessData=d;fillBusinessTranslation(d);const b=d.business;$('#businessPublic').checked=!!Number(b.is_public);$('#publicBusinessLink').href=d.public_url;const qr=$('#businessQr'),url=new URL(d.public_url,location.href).href;qr.innerHTML='';if(window.QRCode){new QRCode(qr,{text:url,width:128,height:128});$('#qrStatus').textContent='Scan or open the tourist link.';}else{$('#qrStatus').innerHTML='QR library unavailable. <a href="'+escapeHtml(url)+'">Open the tourist link</a> instead.';}const rows=[...d.phrases.map(x=>({type:'phrase',id:x.id,title:x.source_text,text:x.translated_text+' · '+x.target_language,published:Number(x.is_published)})),...d.faqs.map(x=>({type:'faq',id:x.id,title:x.question,text:x.answer+' · '+x.language_code,published:Number(x.is_published)})),...d.terms.map(x=>({type:'term',id:x.id,title:x.term,text:x.explanation+' · '+x.language_code,published:Number(x.is_published)}))];$('#businessContent').innerHTML=rows.length?rows.map(x=>{const title=escapeHtml(x.title);return '<div class="record-item"><div><strong>'+title+'</strong><small>'+escapeHtml(x.text)+' · '+(x.published?'Published':'Hidden')+'</small></div><span><button type="button" data-business-edit="'+x.type+':'+x.id+'" data-title="'+title+'" data-text="'+escapeHtml(x.text.split(' · ')[0])+'" aria-label="Edit '+title+'">Edit</button><button type="button" data-business-toggle="'+x.type+':'+x.id+'" aria-label="'+(x.published?'Hide ':'Publish ')+title+'">'+(x.published?'Hide':'Publish')+'</button><button type="button" data-business-delete="'+x.type+':'+x.id+'" aria-label="Delete '+title+'" title="Delete '+title+'">×</button></span></div>';}).join(''):'<div class="empty-state">No managed content.</div>';let reports=d.reports.length?table(['Category','Language','Total','Unique questions'],d.reports.map(x=>[x.category,x.language_code||'—',x.total,x.unique_questions])):'<div class="empty-state">No interactions yet.</div>';if(d.repeated_questions.length)reports+='<h3>Repeated tourist enquiries</h3>'+table(['Question','Total'],d.repeated_questions.map(x=>[x.question_label,x.total]));$('#businessReports').innerHTML=reports;$$('[data-business-delete]').forEach(el=>el.onclick=()=>{const [type,id]=el.dataset.businessDelete.split(':');if(confirm('Delete this managed item?'))businessAction({action:'delete_item',item_type:type,id:Number(id)},'Item deleted.');});$$('[data-business-toggle]').forEach(el=>el.onclick=()=>{const [type,id]=el.dataset.businessToggle.split(':');businessAction({action:'toggle_item',item_type:type,id:Number(id)},'Publication status updated.');});$$('[data-business-edit]').forEach(el=>el.onclick=()=>{const [type,id]=el.dataset.businessEdit.split(':'),title=prompt(type==='faq'?'Question':type==='term'?'Term':'Question or phrase',el.dataset.title);if(title===null)return;const text=prompt(type==='faq'?'Answer':type==='term'?'Explanation':'Translation',el.dataset.text);if(text===null)return;businessAction({action:'update_item',item_type:type,id:Number(id),title,text},'Item updated.');});}
-$$('[data-q-filter]').forEach(button=>button.addEventListener('click',()=>{businessInboxFilter=button.dataset.qFilter;$$('[data-q-filter]').forEach(item=>item.classList.toggle('active',item===button));renderBusinessInbox();}));
-$('#refreshBusinessInbox')?.addEventListener('click',()=>loadBusiness().then(renderBusinessInbox));
-async function loadBusinessApplication(){if(!$('#applicationName'))return;const r=await fetch('api/business.php');if(!r.ok)return;const d=await r.json(),b=d.business;$('#applicationName').value=b.name||'';$('#applicationCategory').value=b.category||'';$('#applicationAddress').value=b.address||'';$('#applicationStatus').textContent='Application status: '+d.application_status+'.';}
-const applicationHeading=$('#application .page-heading');if(applicationHeading){applicationHeading.insertAdjacentHTML('afterend','<div class="publish-progress application-progress" aria-label="Business application progress"><span class="done"><b>✓</b><small>Account created</small></span><i></i><span class="done"><b>✓</b><small>Details submitted</small></span><i></i><span class="active"><b>3</b><small>Administrative review</small></span><i></i><span><b>4</b><small>Business access</small></span></div>');}
-$('#businessContentLanguage')?.addEventListener('change',()=>window.businessData&&fillBusinessTranslation(window.businessData));$('#saveBusiness')?.addEventListener('click',()=>businessAction({action:'save_profile',content_language:$('#businessContentLanguage').value,name:$('#businessName').value,category:$('#businessCategory').value,address:$('#businessAddress').value,description:$('#businessDescription').value,service_details:$('#businessServices').value,payment_methods:$('#businessPayments').value,menu_details:$('#businessMenu').value,facility_details:$('#businessFacilities').value,is_public:$('#businessPublic').checked},'Business profile language saved.'));$('#addBusinessPhrase')?.addEventListener('click',()=>businessAction({action:'add_phrase',source_text:$('#phraseSource').value,translated_text:$('#phraseTranslated').value,suggested_reply:$('#phraseReply').value,target_language:$('#phraseTarget').value,category:$('#phraseCategory').value},'Phrase added.'));$('#addFaq')?.addEventListener('click',()=>businessAction({action:'add_faq',question:$('#faqQuestion').value,answer:$('#faqAnswer').value,language_code:$('#faqLanguage').value},'FAQ added.'));$('#addBusinessTerm')?.addEventListener('click',()=>businessAction({action:'add_term',term:$('#businessTerm').value,explanation:$('#businessTermExplanation').value,language_code:$('#termLanguage').value},'Term saved.'));$('#resubmitApplication')?.addEventListener('click',async()=>{const r=await jsonFetch('api/business.php',{method:'POST',body:JSON.stringify({action:'resubmit_application',name:$('#applicationName').value,category:$('#applicationCategory').value,address:$('#applicationAddress').value,csrf:window.JOM.csrf})});toast(r.ok?'Application submitted for review.':await message(r,'Could not submit application.'));if(r.ok)loadBusinessApplication();});
+    // BUSINESS STUDIO: send an action name and CSRF token to api/business.php.
+    // The API resolves ownership and approval status before changing business content.
+    async function businessAction(body, success) {
+        const r = await jsonFetch('api/business.php', {
+            method: 'POST',
+            body: JSON.stringify({ ...body, csrf: window.JOM.csrf })
+        });
+        toast(r.ok ? success : await message(r, 'Business update failed.'));
+        if (r.ok) loadBusiness().then(renderBusinessInbox);
+    }
+    function updateBusinessPreview() {
+        if ($('#businessPreviewName'))
+            $('#businessPreviewName').textContent =
+                $('#businessName')?.value.trim() || 'Your business';
+        if ($('#businessPreviewCategory'))
+            $('#businessPreviewCategory').textContent =
+                $('#businessCategory')?.value.trim() || 'Tourism service';
+        if ($('#businessPreviewDescription'))
+            $('#businessPreviewDescription').textContent =
+                $('#businessDescription')?.value.trim() ||
+                'Add a description to preview your public page.';
+    }
+    function fillBusinessTranslation(d) {
+        const b = d.business,
+            language = $('#businessContentLanguage').value,
+            translation = (d.translations || []).find((x) => x.language_code === language) || {};
+        const values = {
+            businessName: b.name,
+            businessCategory: b.category,
+            businessAddress: b.address,
+            businessDescription:
+                translation.description ?? (language === 'en' ? b.description : ''),
+            businessServices:
+                translation.service_details ?? (language === 'en' ? b.service_details : ''),
+            businessPayments:
+                translation.payment_methods ?? (language === 'en' ? b.payment_methods : ''),
+            businessMenu: translation.menu_details ?? (language === 'en' ? b.menu_details : ''),
+            businessFacilities:
+                translation.facility_details ?? (language === 'en' ? b.facility_details : '')
+        };
+        Object.entries(values).forEach(([id, value]) => {
+            $('#' + id).value = value || '';
+        });
+        updateBusinessPreview();
+    }
+    ['businessName', 'businessCategory', 'businessDescription'].forEach((id) =>
+        $('#' + id)?.addEventListener('input', updateBusinessPreview)
+    );
+    let businessInboxFilter = 'all';
+    function renderBusinessInbox() {
+        const target = $('#businessInbox'),
+            rows = window.businessData?.inbox || [];
+        if (!target) return;
+        const visible =
+                businessInboxFilter === 'all'
+                    ? rows
+                    : rows.filter((row) => row.status === businessInboxFilter),
+            newCount = rows.filter((row) => row.status === 'new').length;
+        if ($('#businessInboxCount')) $('#businessInboxCount').textContent = newCount;
+        target.innerHTML = visible.length
+            ? visible
+                  .map(
+                      (row) =>
+                          '<article class="inbox-item"><div class="inbox-item-head"><div><strong>' +
+                          escapeHtml(row.question_label) +
+                          '</strong><small>' +
+                          escapeHtml(row.category) +
+                          ' · ' +
+                          escapeHtml(
+                              names[row.language_code] || row.language_code || 'Unknown language'
+                          ) +
+                          ' · ' +
+                          escapeHtml(new Date(row.created_at).toLocaleString()) +
+                          '</small></div><span class="inbox-status ' +
+                          escapeHtml(row.status) +
+                          '">' +
+                          escapeHtml(row.status.replace('_', ' ')) +
+                          '</span></div><div class="inbox-reply"><input data-q-reply="' +
+                          row.id +
+                          '" maxlength="1000" value="' +
+                          escapeHtml(row.reply_text || '') +
+                          '" placeholder="Write a helpful reply"><button class="secondary" type="button" data-q-progress="' +
+                          row.id +
+                          '">In progress</button><button class="primary" type="button" data-q-answer="' +
+                          row.id +
+                          '">Send answer</button></div><button class="link-button" type="button" data-q-archive="' +
+                          row.id +
+                          '">Archive</button></article>'
+                  )
+                  .join('')
+            : '<div class="empty-state">No ' +
+              (businessInboxFilter === 'all'
+                  ? 'visitor questions'
+                  : businessInboxFilter.replace('_', ' ') + ' questions') +
+              '. New questions will appear here.</div>';
+        $$('[data-q-progress]').forEach(
+            (button) =>
+                (button.onclick = () =>
+                    businessAction(
+                        {
+                            action: 'update_inquiry',
+                            id: Number(button.dataset.qProgress),
+                            status: 'in_progress',
+                            reply_text:
+                                $('[data-q-reply="' + button.dataset.qProgress + '"]')?.value || ''
+                        },
+                        'Question marked in progress.'
+                    ))
+        );
+        $$('[data-q-answer]').forEach(
+            (button) =>
+                (button.onclick = () =>
+                    businessAction(
+                        {
+                            action: 'update_inquiry',
+                            id: Number(button.dataset.qAnswer),
+                            status: 'answered',
+                            reply_text:
+                                $('[data-q-reply="' + button.dataset.qAnswer + '"]')?.value || ''
+                        },
+                        'Reply sent to the visitor.'
+                    ))
+        );
+        $$('[data-q-archive]').forEach(
+            (button) =>
+                (button.onclick = () =>
+                    businessAction(
+                        {
+                            action: 'update_inquiry',
+                            id: Number(button.dataset.qArchive),
+                            status: 'archived',
+                            reply_text:
+                                $('[data-q-reply="' + button.dataset.qArchive + '"]')?.value || ''
+                        },
+                        'Question archived.'
+                    ))
+        );
+    }
+    async function loadBusiness() {
+        if (!$('#businessName')) return;
+        const r = await fetch('api/business.php');
+        if (!r.ok) return;
+        const d = await r.json();
+        window.businessData = d;
+        fillBusinessTranslation(d);
+        const b = d.business;
+        $('#businessPublic').checked = !!Number(b.is_public);
+        $('#publicBusinessLink').href = d.public_url;
+        const qr = $('#businessQr'),
+            url = new URL(d.public_url, location.href).href;
+        qr.innerHTML = '';
+        if (window.QRCode) {
+            new QRCode(qr, { text: url, width: 128, height: 128 });
+            $('#qrStatus').textContent = 'Scan or open the tourist link.';
+        } else {
+            $('#qrStatus').innerHTML =
+                'QR library unavailable. <a href="' +
+                escapeHtml(url) +
+                '">Open the tourist link</a> instead.';
+        }
+        const rows = [
+            ...d.phrases.map((x) => ({
+                type: 'phrase',
+                id: x.id,
+                title: x.source_text,
+                text: x.translated_text + ' · ' + x.target_language,
+                published: Number(x.is_published)
+            })),
+            ...d.faqs.map((x) => ({
+                type: 'faq',
+                id: x.id,
+                title: x.question,
+                text: x.answer + ' · ' + x.language_code,
+                published: Number(x.is_published)
+            })),
+            ...d.terms.map((x) => ({
+                type: 'term',
+                id: x.id,
+                title: x.term,
+                text: x.explanation + ' · ' + x.language_code,
+                published: Number(x.is_published)
+            }))
+        ];
+        $('#businessContent').innerHTML = rows.length
+            ? rows
+                  .map((x) => {
+                      const title = escapeHtml(x.title);
+                      return (
+                          '<div class="record-item"><div><strong>' +
+                          title +
+                          '</strong><small>' +
+                          escapeHtml(x.text) +
+                          ' · ' +
+                          (x.published ? 'Published' : 'Hidden') +
+                          '</small></div><span><button type="button" data-business-edit="' +
+                          x.type +
+                          ':' +
+                          x.id +
+                          '" data-title="' +
+                          title +
+                          '" data-text="' +
+                          escapeHtml(x.text.split(' · ')[0]) +
+                          '" aria-label="Edit ' +
+                          title +
+                          '">Edit</button><button type="button" data-business-toggle="' +
+                          x.type +
+                          ':' +
+                          x.id +
+                          '" aria-label="' +
+                          (x.published ? 'Hide ' : 'Publish ') +
+                          title +
+                          '">' +
+                          (x.published ? 'Hide' : 'Publish') +
+                          '</button><button type="button" data-business-delete="' +
+                          x.type +
+                          ':' +
+                          x.id +
+                          '" aria-label="Delete ' +
+                          title +
+                          '" title="Delete ' +
+                          title +
+                          '">×</button></span></div>'
+                      );
+                  })
+                  .join('')
+            : '<div class="empty-state">No managed content.</div>';
+        let reports = d.reports.length
+            ? table(
+                  ['Category', 'Language', 'Total', 'Unique questions'],
+                  d.reports.map((x) => [
+                      x.category,
+                      x.language_code || '—',
+                      x.total,
+                      x.unique_questions
+                  ])
+              )
+            : '<div class="empty-state">No interactions yet.</div>';
+        if (d.repeated_questions.length)
+            reports +=
+                '<h3>Repeated tourist enquiries</h3>' +
+                table(
+                    ['Question', 'Total'],
+                    d.repeated_questions.map((x) => [x.question_label, x.total])
+                );
+        $('#businessReports').innerHTML = reports;
+        $$('[data-business-delete]').forEach(
+            (el) =>
+                (el.onclick = () => {
+                    const [type, id] = el.dataset.businessDelete.split(':');
+                    if (confirm('Delete this managed item?'))
+                        businessAction(
+                            { action: 'delete_item', item_type: type, id: Number(id) },
+                            'Item deleted.'
+                        );
+                })
+        );
+        $$('[data-business-toggle]').forEach(
+            (el) =>
+                (el.onclick = () => {
+                    const [type, id] = el.dataset.businessToggle.split(':');
+                    businessAction(
+                        { action: 'toggle_item', item_type: type, id: Number(id) },
+                        'Publication status updated.'
+                    );
+                })
+        );
+        $$('[data-business-edit]').forEach(
+            (el) =>
+                (el.onclick = () => {
+                    const [type, id] = el.dataset.businessEdit.split(':'),
+                        title = prompt(
+                            type === 'faq'
+                                ? 'Question'
+                                : type === 'term'
+                                  ? 'Term'
+                                  : 'Question or phrase',
+                            el.dataset.title
+                        );
+                    if (title === null) return;
+                    const text = prompt(
+                        type === 'faq' ? 'Answer' : type === 'term' ? 'Explanation' : 'Translation',
+                        el.dataset.text
+                    );
+                    if (text === null) return;
+                    businessAction(
+                        { action: 'update_item', item_type: type, id: Number(id), title, text },
+                        'Item updated.'
+                    );
+                })
+        );
+    }
+    $$('[data-q-filter]').forEach((button) =>
+        button.addEventListener('click', () => {
+            businessInboxFilter = button.dataset.qFilter;
+            $$('[data-q-filter]').forEach((item) =>
+                item.classList.toggle('active', item === button)
+            );
+            renderBusinessInbox();
+        })
+    );
+    $('#refreshBusinessInbox')?.addEventListener('click', () =>
+        loadBusiness().then(renderBusinessInbox)
+    );
+    async function loadBusinessApplication() {
+        if (!$('#applicationName')) return;
+        const r = await fetch('api/business.php');
+        if (!r.ok) return;
+        const d = await r.json(),
+            b = d.business;
+        $('#applicationName').value = b.name || '';
+        $('#applicationCategory').value = b.category || '';
+        $('#applicationAddress').value = b.address || '';
+        $('#applicationStatus').textContent = 'Application status: ' + d.application_status + '.';
+    }
+    const applicationHeading = $('#application .page-heading');
+    if (applicationHeading) {
+        applicationHeading.insertAdjacentHTML(
+            'afterend',
+            '<div class="publish-progress application-progress" aria-label="Business application progress"><span class="done"><b>✓</b><small>Account created</small></span><i></i><span class="done"><b>✓</b><small>Details submitted</small></span><i></i><span class="active"><b>3</b><small>Administrative review</small></span><i></i><span><b>4</b><small>Business access</small></span></div>'
+        );
+    }
+    $('#businessContentLanguage')?.addEventListener(
+        'change',
+        () => window.businessData && fillBusinessTranslation(window.businessData)
+    );
+    $('#saveBusiness')?.addEventListener('click', () =>
+        businessAction(
+            {
+                action: 'save_profile',
+                content_language: $('#businessContentLanguage').value,
+                name: $('#businessName').value,
+                category: $('#businessCategory').value,
+                address: $('#businessAddress').value,
+                description: $('#businessDescription').value,
+                service_details: $('#businessServices').value,
+                payment_methods: $('#businessPayments').value,
+                menu_details: $('#businessMenu').value,
+                facility_details: $('#businessFacilities').value,
+                is_public: $('#businessPublic').checked
+            },
+            'Business profile language saved.'
+        )
+    );
+    $('#addBusinessPhrase')?.addEventListener('click', () =>
+        businessAction(
+            {
+                action: 'add_phrase',
+                source_text: $('#phraseSource').value,
+                translated_text: $('#phraseTranslated').value,
+                suggested_reply: $('#phraseReply').value,
+                target_language: $('#phraseTarget').value,
+                category: $('#phraseCategory').value
+            },
+            'Phrase added.'
+        )
+    );
+    $('#addFaq')?.addEventListener('click', () =>
+        businessAction(
+            {
+                action: 'add_faq',
+                question: $('#faqQuestion').value,
+                answer: $('#faqAnswer').value,
+                language_code: $('#faqLanguage').value
+            },
+            'FAQ added.'
+        )
+    );
+    $('#addBusinessTerm')?.addEventListener('click', () =>
+        businessAction(
+            {
+                action: 'add_term',
+                term: $('#businessTerm').value,
+                explanation: $('#businessTermExplanation').value,
+                language_code: $('#termLanguage').value
+            },
+            'Term saved.'
+        )
+    );
+    $('#resubmitApplication')?.addEventListener('click', async () => {
+        const r = await jsonFetch('api/business.php', {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'resubmit_application',
+                name: $('#applicationName').value,
+                category: $('#applicationCategory').value,
+                address: $('#applicationAddress').value,
+                csrf: window.JOM.csrf
+            })
+        });
+        toast(
+            r.ok
+                ? 'Application submitted for review.'
+                : await message(r, 'Could not submit application.')
+        );
+        if (r.ok) loadBusinessApplication();
+    });
 
-function table(head,rows){return '<div class="table-wrap"><table class="data-table"><thead><tr>'+head.map(x=>'<th>'+escapeHtml(x)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map((x,index)=>'<td data-label="'+escapeHtml(head[index]||'Value')+'">'+escapeHtml(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';}
-function metricBars(rows){const max=Math.max(1,...rows.map(row=>Number(row.value)||0));return rows.map(row=>'<div class="metric-bar"><label>'+escapeHtml(row.label)+'</label><div class="metric-bar-track"><span class="metric-bar-fill" style="width:'+Math.max(2,Math.round((Number(row.value)||0)/max*100))+'%"></span></div><strong>'+escapeHtml(row.value)+'</strong></div>').join('');}
-function insightQuery(){const q=new URLSearchParams();for(const [id,key] of [['insightFrom','from'],['insightTo','to'],['insightLanguage','language'],['insightScenario','scenario'],['insightLocation','location'],['insightBusinessType','business_type']])if($('#'+id)?.value.trim())q.set(key,$('#'+id).value.trim());return q;}
-function setDefaultInsightDates(){const from=$('#insightFrom'),to=$('#insightTo');if(!from||!to||from.value||to.value)return;const today=new Date(),start=new Date(today);start.setDate(today.getDate()-29);const format=date=>date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');from.value=format(start);to.value=format(today);}
-setDefaultInsightDates();
-function comparisonCard(label,row,positiveIsGood=true){const current=Number(row?.current)||0,previous=Number(row?.previous)||0,change=previous?Math.round((current-previous)/previous*100):(current?100:0),good=positiveIsGood?change>=0:change<=0;return '<div class="comparison-card"><span>'+escapeHtml(label)+'</span><strong>'+current+' <small class="'+(good?'trend-up':'trend-down')+'">'+(change>=0?'↑ ':'↓ ')+Math.abs(change)+'%</small></strong><span>Previous period: '+previous+'</span></div>';}
-// EDITOR REPORTS: request filtered aggregates and use the same filters for export links.
-async function loadInsights(){
- if(!$('#insightTranslations'))return;
- const q=insightQuery(),r=await fetch('api/insights.php?'+q);
- if(!r.ok){toast(await message(r,'Could not load insights.'));return;}
- const d=await r.json(),s=d.stats;
- $('#insightTranslations').textContent=s.translations;$('#insightReports').textContent=s.unclear_reports;$('#insightBusinesses').textContent=s.businesses;$('#insightPending').textContent=s.pending_businesses;
- if($('#insightComparisons'))$('#insightComparisons').innerHTML=comparisonCard('Translations',d.comparisons?.translations)+comparisonCard('Issues needing attention',d.comparisons?.issues,false)+comparisonCard('Consented activity',d.comparisons?.events);
- $('#insightEvents').innerHTML=(d.events.length?table(['Event','Language','Scenario','Location','Business','Term','Total'],d.events.map(x=>[x.event_type,x.language_code,x.scenario,x.location_label,x.business_type,x.term_label,x.total])):'<div class="empty-state">No consented events in this period.</div>')+(d.business_analysis.length?'<h3>Business type and communication category</h3>'+table(['Business type','Category','Total'],d.business_analysis.map(x=>[x.business_type,x.communication_category,x.total])):'')+(d.peak_periods.length?'<h3>Peak periods</h3>'+table(['Hour','Total'],d.peak_periods.map(x=>[x.hour_of_day+':00',x.total])):'');
- $('#insightIssues').innerHTML=(d.issues.length?table(['Issue','Language','Scenario','Term','Total','Confidence'],d.issues.map(x=>[x.issue_type,x.language_code,x.scenario,x.term_label,x.total,x.average_confidence??'Not provided'])):'<div class="empty-state">No reported issues in this period.</div>')+(d.repeated_questions.length?'<h3>Repeated tourist enquiries</h3>'+table(['Question','Total'],d.repeated_questions.map(x=>[x.question_label,x.total])):'');
- $('#insightRecommendations').innerHTML=d.recommendations.map(x=>'<div class="scenario-step">'+escapeHtml(x)+'</div>').join('');q.set('format','csv');$('#exportInsights').href='api/insights.php?'+q;
-}
-$('#filterInsights')?.addEventListener('click',loadInsights);
-const insightVisual=$('#insightVisual');
-if(insightVisual){const renderInsightVisual=()=>{insightVisual.innerHTML=metricBars([{label:'Translations',value:$('#insightTranslations').textContent},{label:'Needs attention',value:$('#insightReports').textContent},{label:'Approved businesses',value:$('#insightBusinesses').textContent},{label:'Pending reviews',value:$('#insightPending').textContent}]);};['insightTranslations','insightReports','insightBusinesses','insightPending'].forEach(id=>new MutationObserver(renderInsightVisual).observe($('#'+id),{childList:true}));renderInsightVisual();}
-function renderAdminCharts(data){
- const roles=(data.users_by_role||[]).map(row=>({label:String(row.role).replace(/^./,letter=>letter.toUpperCase()),value:Number(row.total)||0}));
- if($('#adminRoleChart'))$('#adminRoleChart').innerHTML=roles.length?metricBars(roles):'<div class="empty-state">No user accounts yet.</div>';
- const businesses=data.businesses_by_status||[],total=businesses.reduce((sum,row)=>sum+(Number(row.total)||0),0),colors={approved:'var(--brand)',pending:'var(--gold)',rejected:'var(--coral)'};
- const donut=$('#adminStatusDonut');if(donut){let cursor=0,stops=[];businesses.forEach(row=>{const start=cursor;cursor+=total?(Number(row.total)||0)/total*100:0;stops.push((colors[row.status]||'var(--blue)')+' '+start+'% '+cursor+'%');});donut.style.background=stops.length?'conic-gradient('+stops.join(',')+')':'var(--paper-soft)';donut.querySelector('span').textContent=total;}
- if($('#adminStatusLegend'))$('#adminStatusLegend').innerHTML=businesses.map(row=>'<div><i style="background:'+(colors[row.status]||'var(--blue)')+'"></i><span>'+escapeHtml(String(row.status).replace(/^./,letter=>letter.toUpperCase()))+'</span><strong>'+escapeHtml(row.total)+'</strong></div>').join('');
-}
-// ADMIN DASHBOARD: load summaries/review data from api/admin.php.
-// Approval authorization is enforced by PHP even if someone bypasses the hidden UI.
-async function loadAdmin(){
- if(!$('#adminUsers'))return;
- const r=await fetch('api/admin.php');if(!r.ok)return;const d=await r.json();
- $('#adminUsers').textContent=d.stats.users;$('#adminBusinesses').textContent=d.stats.businesses;$('#adminPending').textContent=d.stats.pending;$('#adminTranslations').textContent=d.stats.translations;if($('#adminPriorityCount'))$('#adminPriorityCount').textContent=d.stats.pending;renderAdminCharts(d);
- $('#exportAdminReport').href='api/admin.php?format=csv';
- $('#exportAdminPdf').href='api/admin.php?format=pdf';
- if(d.generated_at){const generated=new Date(d.generated_at);$('#adminReportUpdated').textContent='Updated '+generated.toLocaleString([], {dateStyle:'medium',timeStyle:'short'});}
- const roleRows=(d.users_by_role||[]).map(row=>[String(row.role).replace(/^./,letter=>letter.toUpperCase()),row.active,row.pending,row.suspended,row.total]);
- $('#adminRoleReport').innerHTML=roleRows.length?table(['Role','Active','Pending','Suspended','Total'],roleRows):'<div class="empty-state">No user accounts yet.</div>';
- const businessRows=(d.businesses_by_status||[]).map(row=>[String(row.status).replace(/^./,letter=>letter.toUpperCase()),row.total]);
- $('#adminBusinessReport').innerHTML=businessRows.length?table(['Status','Businesses'],businessRows):'<div class="empty-state">No businesses yet.</div>';
- const activityRows=(d.recent_activity||[]).map(row=>[row.created_at,row.administrator,row.action,row.area]);
- $('#adminActivity').innerHTML=activityRows.length?table(['Date','Administrator','Action','Area'],activityRows):'<div class="empty-state">No administrative activity yet.</div>';
- $('#pendingBusinesses').innerHTML=d.pending.map(b=>'<div class="record-item"><div><strong>'+escapeHtml(b.name)+'</strong><small>'+escapeHtml(b.category)+' · '+escapeHtml(b.email)+'</small></div><span><button data-decision="approve" data-bid="'+b.id+'">Approve</button><button data-decision="reject" data-bid="'+b.id+'">Reject</button></span></div>').join('')||'<div class="empty-state">No pending businesses.</div>';
- $$('[data-decision]').forEach(b=>b.onclick=async()=>{await jsonFetch('api/admin.php',{method:'POST',body:JSON.stringify({business_id:Number(b.dataset.bid),decision:b.dataset.decision,csrf:window.JOM.csrf})});loadAdmin();loadInsights();});
-}
+    function table(head, rows) {
+        return (
+            '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            head.map((x) => '<th>' + escapeHtml(x) + '</th>').join('') +
+            '</tr></thead><tbody>' +
+            rows
+                .map(
+                    (r) =>
+                        '<tr>' +
+                        r
+                            .map(
+                                (x, index) =>
+                                    '<td data-label="' +
+                                    escapeHtml(head[index] || 'Value') +
+                                    '">' +
+                                    escapeHtml(x) +
+                                    '</td>'
+                            )
+                            .join('') +
+                        '</tr>'
+                )
+                .join('') +
+            '</tbody></table></div>'
+        );
+    }
+    function metricBars(rows) {
+        const max = Math.max(1, ...rows.map((row) => Number(row.value) || 0));
+        return rows
+            .map(
+                (row) =>
+                    '<div class="metric-bar"><label>' +
+                    escapeHtml(row.label) +
+                    '</label><div class="metric-bar-track"><span class="metric-bar-fill" style="width:' +
+                    Math.max(2, Math.round(((Number(row.value) || 0) / max) * 100)) +
+                    '%"></span></div><strong>' +
+                    escapeHtml(row.value) +
+                    '</strong></div>'
+            )
+            .join('');
+    }
+    function insightQuery() {
+        const q = new URLSearchParams();
+        for (const [id, key] of [
+            ['insightFrom', 'from'],
+            ['insightTo', 'to'],
+            ['insightLanguage', 'language'],
+            ['insightScenario', 'scenario'],
+            ['insightLocation', 'location'],
+            ['insightBusinessType', 'business_type']
+        ])
+            if ($('#' + id)?.value.trim()) q.set(key, $('#' + id).value.trim());
+        return q;
+    }
+    function setDefaultInsightDates() {
+        const from = $('#insightFrom'),
+            to = $('#insightTo');
+        if (!from || !to || from.value || to.value) return;
+        const today = new Date(),
+            start = new Date(today);
+        start.setDate(today.getDate() - 29);
+        const format = (date) =>
+            date.getFullYear() +
+            '-' +
+            String(date.getMonth() + 1).padStart(2, '0') +
+            '-' +
+            String(date.getDate()).padStart(2, '0');
+        from.value = format(start);
+        to.value = format(today);
+    }
+    setDefaultInsightDates();
+    function comparisonCard(label, row, positiveIsGood = true) {
+        const current = Number(row?.current) || 0,
+            previous = Number(row?.previous) || 0,
+            change = previous
+                ? Math.round(((current - previous) / previous) * 100)
+                : current
+                  ? 100
+                  : 0,
+            good = positiveIsGood ? change >= 0 : change <= 0;
+        return (
+            '<div class="comparison-card"><span>' +
+            escapeHtml(label) +
+            '</span><strong>' +
+            current +
+            ' <small class="' +
+            (good ? 'trend-up' : 'trend-down') +
+            '">' +
+            (change >= 0 ? '↑ ' : '↓ ') +
+            Math.abs(change) +
+            '%</small></strong><span>Previous period: ' +
+            previous +
+            '</span></div>'
+        );
+    }
+    // EDITOR REPORTS: request filtered aggregates and use the same filters for export links.
+    async function loadInsights() {
+        if (!$('#insightTranslations')) return;
+        const q = insightQuery(),
+            r = await fetch('api/insights.php?' + q);
+        if (!r.ok) {
+            toast(await message(r, 'Could not load insights.'));
+            return;
+        }
+        const d = await r.json(),
+            s = d.stats;
+        $('#insightTranslations').textContent = s.translations;
+        $('#insightReports').textContent = s.unclear_reports;
+        $('#insightBusinesses').textContent = s.businesses;
+        $('#insightPending').textContent = s.pending_businesses;
+        if ($('#insightComparisons'))
+            $('#insightComparisons').innerHTML =
+                comparisonCard('Translations', d.comparisons?.translations) +
+                comparisonCard('Issues needing attention', d.comparisons?.issues, false) +
+                comparisonCard('Consented activity', d.comparisons?.events);
+        $('#insightEvents').innerHTML =
+            (d.events.length
+                ? table(
+                      ['Event', 'Language', 'Scenario', 'Location', 'Business', 'Term', 'Total'],
+                      d.events.map((x) => [
+                          x.event_type,
+                          x.language_code,
+                          x.scenario,
+                          x.location_label,
+                          x.business_type,
+                          x.term_label,
+                          x.total
+                      ])
+                  )
+                : '<div class="empty-state">No consented events in this period.</div>') +
+            (d.business_analysis.length
+                ? '<h3>Business type and communication category</h3>' +
+                  table(
+                      ['Business type', 'Category', 'Total'],
+                      d.business_analysis.map((x) => [
+                          x.business_type,
+                          x.communication_category,
+                          x.total
+                      ])
+                  )
+                : '') +
+            (d.peak_periods.length
+                ? '<h3>Peak periods</h3>' +
+                  table(
+                      ['Hour', 'Total'],
+                      d.peak_periods.map((x) => [x.hour_of_day + ':00', x.total])
+                  )
+                : '');
+        $('#insightIssues').innerHTML =
+            (d.issues.length
+                ? table(
+                      ['Issue', 'Language', 'Scenario', 'Term', 'Total', 'Confidence'],
+                      d.issues.map((x) => [
+                          x.issue_type,
+                          x.language_code,
+                          x.scenario,
+                          x.term_label,
+                          x.total,
+                          x.average_confidence ?? 'Not provided'
+                      ])
+                  )
+                : '<div class="empty-state">No reported issues in this period.</div>') +
+            (d.repeated_questions.length
+                ? '<h3>Repeated tourist enquiries</h3>' +
+                  table(
+                      ['Question', 'Total'],
+                      d.repeated_questions.map((x) => [x.question_label, x.total])
+                  )
+                : '');
+        $('#insightRecommendations').innerHTML = d.recommendations
+            .map((x) => '<div class="scenario-step">' + escapeHtml(x) + '</div>')
+            .join('');
+        q.set('format', 'csv');
+        $('#exportInsights').href = 'api/insights.php?' + q;
+    }
+    $('#filterInsights')?.addEventListener('click', loadInsights);
+    const insightVisual = $('#insightVisual');
+    if (insightVisual) {
+        const renderInsightVisual = () => {
+            insightVisual.innerHTML = metricBars([
+                { label: 'Translations', value: $('#insightTranslations').textContent },
+                { label: 'Needs attention', value: $('#insightReports').textContent },
+                { label: 'Approved businesses', value: $('#insightBusinesses').textContent },
+                { label: 'Pending reviews', value: $('#insightPending').textContent }
+            ]);
+        };
+        ['insightTranslations', 'insightReports', 'insightBusinesses', 'insightPending'].forEach(
+            (id) =>
+                new MutationObserver(renderInsightVisual).observe($('#' + id), { childList: true })
+        );
+        renderInsightVisual();
+    }
+    function renderAdminCharts(data) {
+        const roles = (data.users_by_role || []).map((row) => ({
+            label: String(row.role).replace(/^./, (letter) => letter.toUpperCase()),
+            value: Number(row.total) || 0
+        }));
+        if ($('#adminRoleChart'))
+            $('#adminRoleChart').innerHTML = roles.length
+                ? metricBars(roles)
+                : '<div class="empty-state">No user accounts yet.</div>';
+        const businesses = data.businesses_by_status || [],
+            total = businesses.reduce((sum, row) => sum + (Number(row.total) || 0), 0),
+            colors = { approved: 'var(--brand)', pending: 'var(--gold)', rejected: 'var(--coral)' };
+        const donut = $('#adminStatusDonut');
+        if (donut) {
+            let cursor = 0,
+                stops = [];
+            businesses.forEach((row) => {
+                const start = cursor;
+                cursor += total ? ((Number(row.total) || 0) / total) * 100 : 0;
+                stops.push(
+                    (colors[row.status] || 'var(--blue)') + ' ' + start + '% ' + cursor + '%'
+                );
+            });
+            donut.style.background = stops.length
+                ? 'conic-gradient(' + stops.join(',') + ')'
+                : 'var(--paper-soft)';
+            donut.querySelector('span').textContent = total;
+        }
+        if ($('#adminStatusLegend'))
+            $('#adminStatusLegend').innerHTML = businesses
+                .map(
+                    (row) =>
+                        '<div><i style="background:' +
+                        (colors[row.status] || 'var(--blue)') +
+                        '"></i><span>' +
+                        escapeHtml(
+                            String(row.status).replace(/^./, (letter) => letter.toUpperCase())
+                        ) +
+                        '</span><strong>' +
+                        escapeHtml(row.total) +
+                        '</strong></div>'
+                )
+                .join('');
+    }
+    // ADMIN DASHBOARD: load summaries/review data from api/admin.php.
+    // Approval authorization is enforced by PHP even if someone bypasses the hidden UI.
+    async function loadAdmin() {
+        if (!$('#adminUsers')) return;
+        const r = await fetch('api/admin.php');
+        if (!r.ok) return;
+        const d = await r.json();
+        $('#adminUsers').textContent = d.stats.users;
+        $('#adminBusinesses').textContent = d.stats.businesses;
+        $('#adminPending').textContent = d.stats.pending;
+        $('#adminTranslations').textContent = d.stats.translations;
+        if ($('#adminPriorityCount')) $('#adminPriorityCount').textContent = d.stats.pending;
+        renderAdminCharts(d);
+        $('#exportAdminReport').href = 'api/admin.php?format=csv';
+        $('#exportAdminPdf').href = 'api/admin.php?format=pdf';
+        if (d.generated_at) {
+            const generated = new Date(d.generated_at);
+            $('#adminReportUpdated').textContent =
+                'Updated ' +
+                generated.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+        }
+        const roleRows = (d.users_by_role || []).map((row) => [
+            String(row.role).replace(/^./, (letter) => letter.toUpperCase()),
+            row.active,
+            row.pending,
+            row.suspended,
+            row.total
+        ]);
+        $('#adminRoleReport').innerHTML = roleRows.length
+            ? table(['Role', 'Active', 'Pending', 'Suspended', 'Total'], roleRows)
+            : '<div class="empty-state">No user accounts yet.</div>';
+        const businessRows = (d.businesses_by_status || []).map((row) => [
+            String(row.status).replace(/^./, (letter) => letter.toUpperCase()),
+            row.total
+        ]);
+        $('#adminBusinessReport').innerHTML = businessRows.length
+            ? table(['Status', 'Businesses'], businessRows)
+            : '<div class="empty-state">No businesses yet.</div>';
+        const activityRows = (d.recent_activity || []).map((row) => [
+            row.created_at,
+            row.administrator,
+            row.action,
+            row.area
+        ]);
+        $('#adminActivity').innerHTML = activityRows.length
+            ? table(['Date', 'Administrator', 'Action', 'Area'], activityRows)
+            : '<div class="empty-state">No administrative activity yet.</div>';
+        $('#pendingBusinesses').innerHTML =
+            d.pending
+                .map(
+                    (b) =>
+                        '<div class="record-item"><div><strong>' +
+                        escapeHtml(b.name) +
+                        '</strong><small>' +
+                        escapeHtml(b.category) +
+                        ' · ' +
+                        escapeHtml(b.email) +
+                        '</small></div><span><button data-decision="approve" data-bid="' +
+                        b.id +
+                        '">Approve</button><button data-decision="reject" data-bid="' +
+                        b.id +
+                        '">Reject</button></span></div>'
+                )
+                .join('') || '<div class="empty-state">No pending businesses.</div>';
+        $$('[data-decision]').forEach(
+            (b) =>
+                (b.onclick = async () => {
+                    await jsonFetch('api/admin.php', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            business_id: Number(b.dataset.bid),
+                            decision: b.dataset.decision,
+                            csrf: window.JOM.csrf
+                        })
+                    });
+                    loadAdmin();
+                    loadInsights();
+                })
+        );
+    }
 
-// Start with disabled result controls, load preferences, then load module data concurrently.
-// Module loaders check whether their page/control is available before rendering.
-async function init(){actions(false);await loadPreferences();await Promise.all([loadRecords(),loadGlossary(),loadProfile(),loadAccountProfile(),loadBusiness(),loadBusinessApplication(),loadInsights(),loadAdmin()]);renderBusinessInbox();}init();const start=location.hash.slice(1);if(start&&document.getElementById(start)?.classList.contains('page'))showPage(start,{updateHash:false});else showPage(defaultPage,{updateHash:false});
-}());
+    // Start with disabled result controls, load preferences, then load module data concurrently.
+    // Module loaders check whether their page/control is available before rendering.
+    async function init() {
+        actions(false);
+        await loadPreferences();
+        await Promise.all([
+            loadRecords(),
+            loadGlossary(),
+            loadProfile(),
+            loadAccountProfile(),
+            loadBusiness(),
+            loadBusinessApplication(),
+            loadInsights(),
+            loadAdmin()
+        ]);
+        renderBusinessInbox();
+    }
+    init();
+    const start = location.hash.slice(1);
+    if (start && document.getElementById(start)?.classList.contains('page'))
+        showPage(start, { updateHash: false });
+    else showPage(defaultPage, { updateHash: false });
+})();

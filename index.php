@@ -8,14 +8,16 @@ $role = $user['role'] ?? 'guest';
 $name = $user['full_name'] ?? 'Guest traveller';
 $firstName = trim(explode(' ', $name)[0] ?? $name);
 $profileInitial = mb_strtoupper(mb_substr($name, 0, 1));
-$profileImage = is_string($user['profile_image'] ?? null) ? (string)$user['profile_image'] : '';
+$profileImage = is_string($user['profile_image'] ?? null) ? (string) $user['profile_image'] : '';
 $approved = false;
 $businessStatus = null;
 
 if ($user && $role === 'business') {
     try {
-        $statement = database()->prepare('SELECT verification_status FROM businesses WHERE owner_user_id=?');
-        $statement->execute([(int)$user['id']]);
+        $statement = database()->prepare(
+            'SELECT verification_status FROM businesses WHERE owner_user_id=?',
+        );
+        $statement->execute([(int) $user['id']]);
         $businessStatus = $statement->fetchColumn() ?: null;
         $approved = $businessStatus === 'approved' && ($user['status'] ?? '') === 'active';
     } catch (Throwable $exception) {
@@ -36,7 +38,12 @@ function language_options(bool $includeAutomatic = false): string
     ];
     $html = '';
     foreach ($languages as $value => $label) {
-        $html .= '<option value="' . htmlspecialchars($value) . '">' . htmlspecialchars($label) . '</option>';
+        $html .=
+            '<option value="' .
+            htmlspecialchars($value) .
+            '">' .
+            htmlspecialchars($label) .
+            '</option>';
     }
     return $html;
 }
@@ -44,21 +51,38 @@ function language_options(bool $includeAutomatic = false): string
 function nav_icon(string $name): string
 {
     $icons = [
-        'home' => '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
-        'translate' => '<path d="M4 5h10M9 3v2c0 4-2 7-5 9"/><path d="M6 10c2 2 4 3 7 4"/><path d="m14 20 4-9 4 9m-6.5-3h5"/>',
+        'home' =>
+            '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+        'translate' =>
+            '<path d="M4 5h10M9 3v2c0 4-2 7-5 9"/><path d="M6 10c2 2 4 3 7 4"/><path d="m14 20 4-9 4 9m-6.5-3h5"/>',
         'compass' => '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/>',
-        'journey' => '<path d="M6 21V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14"/><path d="M9 5V3h6v2M4 10h16M9 13v4m6-4v4"/>',
-        'store' => '<path d="M4 10v10h16V10"/><path d="m3 10 2-6h14l2 6"/><path d="M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M9 20v-6h6v6"/>',
+        'journey' =>
+            '<path d="M6 21V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14"/><path d="M9 5V3h6v2M4 10h16M9 13v4m6-4v4"/>',
+        'store' =>
+            '<path d="M4 10v10h16V10"/><path d="m3 10 2-6h14l2 6"/><path d="M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M9 20v-6h6v6"/>',
         'chart' => '<path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/>',
-        'admin' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>',
+        'admin' =>
+            '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>',
         'profile' => '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     ];
-    return '<svg viewBox="0 0 24 24" aria-hidden="true">' . ($icons[$name] ?? $icons['home']) . '</svg>';
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">' .
+        ($icons[$name] ?? $icons['home']) .
+        '</svg>';
 }
 
 function nav_button(string $page, string $label, string $icon, bool $active = false): string
 {
-    return '<button class="nav-link' . ($active ? ' active' : '') . '" type="button" data-page="' . htmlspecialchars($page) . '" title="' . htmlspecialchars($label) . '">' . nav_icon($icon) . '<span>' . htmlspecialchars($label) . '</span></button>';
+    return '<button class="nav-link' .
+        ($active ? ' active' : '') .
+        '" type="button" data-page="' .
+        htmlspecialchars($page) .
+        '" title="' .
+        htmlspecialchars($label) .
+        '">' .
+        nav_icon($icon) .
+        '<span>' .
+        htmlspecialchars($label) .
+        '</span></button>';
 }
 ?>
 <!doctype html>
@@ -70,13 +94,17 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
     <meta name="description" content="TourLingo makes multilingual travel communication simple, personal and accessible.">
     <meta name="theme-color" content="#082f49">
     <title>TourLingo · Travel with confidence</title>
-    <link rel="stylesheet" href="assets/css/styles.css?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/css/styles.css') ?: '1')) ?>">
+    <link rel="stylesheet" href="assets/css/styles.css?v=<?= rawurlencode(
+        (string) (filemtime(__DIR__ . '/assets/css/styles.css') ?: '1'),
+    ) ?>">
 </head>
 <body data-role="<?= htmlspecialchars($role) ?>">
 <div class="app-shell">
     <aside class="sidebar" id="mainNavigation" aria-hidden="false">
         <button id="closeMenuButton" class="sidebar-close" type="button" aria-label="Close navigation"><span></span><span></span><span></span></button>
-        <a class="brand" href="#<?= $user ? 'home' : 'communication' ?>" aria-label="TourLingo <?= $user ? 'overview' : 'translator' ?>">
+        <a class="brand" href="#<?= $user
+            ? 'home'
+            : 'communication' ?>" aria-label="TourLingo <?= $user ? 'overview' : 'translator' ?>">
             <span class="brand-mark"><img src="assets/logo.svg" width="46" height="46" alt=""></span>
             <span>TourLingo<small>Travel with confidence</small></span>
         </a>
@@ -119,15 +147,33 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
         <header class="topbar">
             <div class="topbar-leading">
                 <button id="menuButton" class="icon-button menu-button" type="button" aria-label="Open navigation" aria-controls="mainNavigation" aria-expanded="false"><span></span><span></span><span></span></button>
-                <div class="topbar-title"><small>TourLingo</small><strong id="currentPageLabel"><?= $user ? 'Overview' : 'Translate' ?></strong></div>
+                <div class="topbar-title"><small>TourLingo</small><strong id="currentPageLabel"><?= $user
+                    ? 'Overview'
+                    : 'Translate' ?></strong></div>
             </div>
             <div class="top-actions">
                 <span id="todayLabel" class="today-label"></span>
                 <button id="contrastButton" class="icon-button" type="button" aria-label="Enable dark mode" aria-pressed="false" title="Enable dark mode">☾</button>
                 <?php if ($user): ?>
                     <details class="account-menu">
-                        <summary class="profile-chip profile-button" aria-label="Open account menu"><span class="chip-avatar" id="topbarProfileAvatar"><?php if ($profileImage !== ''): ?><img src="<?= htmlspecialchars($profileImage) ?>" alt=""><?php else: ?><?= htmlspecialchars($profileInitial) ?><?php endif; ?></span><div><strong id="profileNameLabel"><?= htmlspecialchars($name) ?></strong><small><?= htmlspecialchars(ucfirst($role)) ?></small></div><span class="menu-chevron" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m5.5 7.5 4.5 4.5 4.5-4.5"/></svg></span></summary>
-                        <div class="account-popover"><div class="account-popover-head"><strong><?= htmlspecialchars($name) ?></strong><small><?= htmlspecialchars((string)$user['email']) ?></small></div><button type="button" data-page="profile" aria-label="Profile and settings"><?= nav_icon('profile') ?><span>Profile & settings</span></button><form method="post" action="logout.php"><input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>"><button type="submit" aria-label="Log out"><span class="logout-symbol" aria-hidden="true">↗</span><span>Log out</span></button></form></div>
+                        <summary class="profile-chip profile-button" aria-label="Open account menu"><span class="chip-avatar" id="topbarProfileAvatar"><?php if (
+                            $profileImage !== ''
+                        ): ?><img src="<?= htmlspecialchars(
+    $profileImage,
+) ?>" alt=""><?php else: ?><?= htmlspecialchars($profileInitial) ?><?php endif; ?></span><div><strong id="profileNameLabel"><?= htmlspecialchars(
+    $name,
+) ?></strong><small><?= htmlspecialchars(
+    ucfirst($role),
+) ?></small></div><span class="menu-chevron" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m5.5 7.5 4.5 4.5 4.5-4.5"/></svg></span></summary>
+                        <div class="account-popover"><div class="account-popover-head"><strong><?= htmlspecialchars(
+                            $name,
+                        ) ?></strong><small><?= htmlspecialchars(
+    (string) $user['email'],
+) ?></small></div><button type="button" data-page="profile" aria-label="Profile and settings"><?= nav_icon(
+    'profile',
+) ?><span>Profile & settings</span></button><form method="post" action="logout.php"><input type="hidden" name="csrf" value="<?= htmlspecialchars(
+    csrf_token(),
+) ?>"><button type="submit" aria-label="Log out"><span class="logout-symbol" aria-hidden="true">↗</span><span>Log out</span></button></form></div>
                     </details>
                 <?php else: ?>
                     <a class="small-button quiet-button" href="login.php">Log in</a>
@@ -150,16 +196,28 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                 </div>
                 <div class="section-heading compact-heading"><div><span class="eyebrow">Quick access</span><h2>What would you like to do?</h2></div></div>
                 <div class="action-grid">
-                    <button class="action-card" type="button" data-page="communication"><span class="action-icon aqua"><?= nav_icon('translate') ?></span><strong>Translate a message</strong><small>Text, voice and two-way conversation</small><b>Open translator →</b></button>
-                    <button class="action-card" type="button" data-page="assistance"><span class="action-icon blue"><?= nav_icon('compass') ?></span><strong>Prepare for a situation</strong><small>Restaurants, hotels, transport and emergencies</small><b>Choose assistance →</b></button>
+                    <button class="action-card" type="button" data-page="communication"><span class="action-icon aqua"><?= nav_icon(
+                        'translate',
+                    ) ?></span><strong>Translate a message</strong><small>Text, voice and two-way conversation</small><b>Open translator →</b></button>
+                    <button class="action-card" type="button" data-page="assistance"><span class="action-icon blue"><?= nav_icon(
+                        'compass',
+                    ) ?></span><strong>Prepare for a situation</strong><small>Restaurants, hotels, transport and emergencies</small><b>Choose assistance →</b></button>
                     <?php if ($role === 'tourist'): ?>
-                        <button class="action-card" type="button" data-page="journey"><span class="action-icon coral"><?= nav_icon('journey') ?></span><strong>Plan my journey</strong><small>Saved packs, preferences and useful phrases</small><b>View journey →</b></button>
+                        <button class="action-card" type="button" data-page="journey"><span class="action-icon coral"><?= nav_icon(
+                            'journey',
+                        ) ?></span><strong>Plan my journey</strong><small>Saved packs, preferences and useful phrases</small><b>View journey →</b></button>
                     <?php elseif ($approved): ?>
-                        <button class="action-card" type="button" data-page="business"><span class="action-icon coral"><?= nav_icon('store') ?></span><strong>Manage my business</strong><small>Public profile, phrases and visitor questions</small><b>Open studio →</b></button>
+                        <button class="action-card" type="button" data-page="business"><span class="action-icon coral"><?= nav_icon(
+                            'store',
+                        ) ?></span><strong>Manage my business</strong><small>Public profile, phrases and visitor questions</small><b>Open studio →</b></button>
                     <?php elseif ($staff): ?>
-                        <button class="action-card" type="button" data-page="insights"><span class="action-icon coral"><?= nav_icon('chart') ?></span><strong>Review service insights</strong><small>Anonymous usage patterns and opportunities</small><b>View insights →</b></button>
+                        <button class="action-card" type="button" data-page="insights"><span class="action-icon coral"><?= nav_icon(
+                            'chart',
+                        ) ?></span><strong>Review service insights</strong><small>Anonymous usage patterns and opportunities</small><b>View insights →</b></button>
                     <?php else: ?>
-                        <button class="action-card" type="button" data-page="application"><span class="action-icon coral"><?= nav_icon('store') ?></span><strong>Track my application</strong><small>Review and update your business submission</small><b>View application →</b></button>
+                        <button class="action-card" type="button" data-page="application"><span class="action-icon coral"><?= nav_icon(
+                            'store',
+                        ) ?></span><strong>Track my application</strong><small>Review and update your business submission</small><b>View application →</b></button>
                     <?php endif; ?>
                 </div>
                 <section class="getting-started" aria-labelledby="gettingStartedTitle">
@@ -174,12 +232,16 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             </section>
             <?php endif; ?>
 
-            <section class="page<?= !$user ? ' active' : '' ?>" id="communication" data-title="Translate">
+            <section class="page<?= !$user
+                ? ' active'
+                : '' ?>" id="communication" data-title="Translate">
                 <div class="page-heading"><div><span class="eyebrow">Live communication</span><h1>Translate and speak</h1><p>Clear, confident conversations wherever your journey takes you.</p></div><button id="largeMessage" class="secondary" type="button">Large-screen message</button></div>
                 <div class="translation-workspace">
                     <article class="card-panel input-panel">
                         <div class="section-heading"><h2>Your message</h2><p>Enter or speak the message you want to translate.</p></div>
-                        <div class="language-row"><label>From<select id="sourceLanguage"><?= language_options(true) ?></select></label><button id="swapLanguages" class="swap-button" type="button" aria-label="Swap languages">⇄</button><label>To<select id="targetLanguage"><?= language_options() ?></select></label></div>
+                        <div class="language-row"><label>From<select id="sourceLanguage"><?= language_options(
+                            true,
+                        ) ?></select></label><button id="swapLanguages" class="swap-button" type="button" aria-label="Swap languages">⇄</button><label>To<select id="targetLanguage"><?= language_options() ?></select></label></div>
                         <textarea id="sourceText" class="message-input" maxlength="500" rows="6" placeholder="Type what you want to say…" aria-label="Message to translate"></textarea>
                         <div class="field-footer">
                             <div class="voice-controls">
@@ -196,15 +258,23 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                             </div>
                             <span class="character-counter"><span id="characterCount">0</span>/500</span>
                         </div>
-                        <div class="panel-actions"><?php if ($user): ?><label class="check-row"><input type="checkbox" id="twoWayMode"> Two-way conversation mode</label><?php endif; ?><button id="translateButton" class="primary translate-cta">Translate message</button></div>
+                        <div class="panel-actions"><?php if (
+                            $user
+                        ): ?><label class="check-row"><input type="checkbox" id="twoWayMode"> Two-way conversation mode</label><?php endif; ?><button id="translateButton" class="primary translate-cta">Translate message</button></div>
                     </article>
                     <article class="card-panel output-panel">
-                        <div class="section-heading"><h2>Translation</h2><p><?= $user ? 'Ready to play, copy or save.' : 'Ready to play or copy.' ?></p></div>
+                        <div class="section-heading"><h2>Translation</h2><p><?= $user
+                            ? 'Ready to play, copy or save.'
+                            : 'Ready to play or copy.' ?></p></div>
                         <div id="translationResult" class="translation-result">Your translation will appear here.</div>
                         <div id="translationMeta" class="meta-box">Language and confidence appear after translation.</div>
                         <div id="translationAlternatives" class="record-list"></div>
-                        <div class="button-row result-actions"><button id="speakResult" class="secondary" disabled>Voice</button><button id="copyResult" class="secondary" disabled>Copy</button><?php if ($user): ?><button id="savePhrase" class="primary" disabled>Save</button><button id="reportTranslation" class="danger ghost-danger" disabled>Report unclear</button><?php endif; ?></div>
-<?php if ($user): ?>                        <div id="twoWayReplies" class="chip-row"></div><?php endif; ?>
+                        <div class="button-row result-actions"><button id="speakResult" class="secondary" disabled>Voice</button><button id="copyResult" class="secondary" disabled>Copy</button><?php if (
+                            $user
+                        ): ?><button id="savePhrase" class="primary" disabled>Save</button><button id="reportTranslation" class="danger ghost-danger" disabled>Report unclear</button><?php endif; ?></div>
+<?php if (
+    $user
+): ?>                        <div id="twoWayReplies" class="chip-row"></div><?php endif; ?>
                     </article>
                 </div>
                 <?php if (!$user): ?>
@@ -240,7 +310,13 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             <?php endif; ?>
 
             <?php if ($role === 'business' && !$approved): ?>
-            <section class="page" id="application" data-title="Business application"><div class="page-heading"><div><span class="eyebrow">Partner with TourLingo</span><h1>Business application</h1><p id="applicationStatus">Application status: <?= htmlspecialchars((string)($businessStatus ?? 'pending')) ?></p></div><span class="status-pill <?= $businessStatus === 'rejected' ? 'rejected' : 'pending' ?>"><?= $businessStatus === 'rejected' ? 'Needs revision' : 'Under review' ?></span></div><div class="narrow-content"><article class="card-panel application-card"><div class="card-kicker"><span>⌂</span><div><h2>Business details</h2><p>Keep this information accurate while our team reviews your application.</p></div></div><label>Business name<input id="applicationName" maxlength="160"></label><label>Category<input id="applicationCategory" maxlength="80"></label><label>Address<textarea id="applicationAddress" maxlength="500" rows="4"></textarea></label><button id="resubmitApplication" class="primary">Save and submit for review</button></article></div></section>
+            <section class="page" id="application" data-title="Business application"><div class="page-heading"><div><span class="eyebrow">Partner with TourLingo</span><h1>Business application</h1><p id="applicationStatus">Application status: <?= htmlspecialchars(
+                (string) ($businessStatus ?? 'pending'),
+            ) ?></p></div><span class="status-pill <?= $businessStatus === 'rejected'
+    ? 'rejected'
+    : 'pending' ?>"><?= $businessStatus === 'rejected'
+    ? 'Needs revision'
+    : 'Under review' ?></span></div><div class="narrow-content"><article class="card-panel application-card"><div class="card-kicker"><span>⌂</span><div><h2>Business details</h2><p>Keep this information accurate while our team reviews your application.</p></div></div><label>Business name<input id="applicationName" maxlength="160"></label><label>Category<input id="applicationCategory" maxlength="80"></label><label>Address<textarea id="applicationAddress" maxlength="500" rows="4"></textarea></label><button id="resubmitApplication" class="primary">Save and submit for review</button></article></div></section>
             <?php endif; ?>
 
             <?php if ($approved): ?>
@@ -287,11 +363,50 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             <?php if ($user): ?>
             <section class="page" id="profile" data-title="Profile & settings">
                 <div class="page-heading"><div><span class="eyebrow">Your TourLingo account</span><h1>Profile & settings</h1><p>Keep your account, preferences and security details in one place.</p></div></div>
-                <nav class="profile-section-nav" aria-label="Profile sections"><button type="button" data-profile-section="0">Personal details</button><?php if ($role === 'tourist'): ?><button type="button" data-profile-section="1">Travel preferences</button><button type="button" data-profile-section="2">Privacy</button><button type="button" data-profile-section="3">Security</button><?php else: ?><button type="button" data-profile-section="1">Security</button><?php endif; ?></nav>
+                <nav class="profile-section-nav" aria-label="Profile sections"><button type="button" data-profile-section="0">Personal details</button><?php if (
+                    $role === 'tourist'
+                ): ?><button type="button" data-profile-section="1">Travel preferences</button><button type="button" data-profile-section="2">Privacy</button><button type="button" data-profile-section="3">Security</button><?php else: ?><button type="button" data-profile-section="1">Security</button><?php endif; ?></nav>
                 <div class="profile-layout">
-                    <aside class="profile-summary-card"><span class="profile-avatar-large" id="profileAvatar"><?php if ($profileImage !== ''): ?><img src="<?= htmlspecialchars($profileImage) ?>" alt="<?= htmlspecialchars($name) ?> profile picture"><?php else: ?><span><?= htmlspecialchars($profileInitial) ?></span><?php endif; ?></span><h2 id="profileSummaryName"><?= htmlspecialchars($name) ?></h2><p id="profileSummaryEmail"><?= htmlspecialchars((string)$user['email']) ?></p><span class="role-badge"><?= htmlspecialchars(ucfirst($role)) ?></span><div class="profile-summary-list"><div><span>Account status</span><strong><?= htmlspecialchars(ucfirst((string)$user['status'])) ?></strong></div><div><span>Member type</span><strong>TourLingo <?= htmlspecialchars(ucfirst($role)) ?></strong></div></div></aside>
+                    <aside class="profile-summary-card"><span class="profile-avatar-large" id="profileAvatar"><?php if (
+                        $profileImage !== ''
+                    ): ?><img src="<?= htmlspecialchars(
+    $profileImage,
+) ?>" alt="<?= htmlspecialchars($name) ?> profile picture"><?php else: ?><span><?= htmlspecialchars(
+    $profileInitial,
+) ?></span><?php endif; ?></span><h2 id="profileSummaryName"><?= htmlspecialchars(
+    $name,
+) ?></h2><p id="profileSummaryEmail"><?= htmlspecialchars(
+    (string) $user['email'],
+) ?></p><span class="role-badge"><?= htmlspecialchars(
+    ucfirst($role),
+) ?></span><div class="profile-summary-list"><div><span>Account status</span><strong><?= htmlspecialchars(
+    ucfirst((string) $user['status']),
+) ?></strong></div><div><span>Member type</span><strong>TourLingo <?= htmlspecialchars(
+    ucfirst($role),
+) ?></strong></div></div></aside>
                     <div class="profile-content">
-                        <article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Account</span><h2>Personal details</h2></div></div><div class="profile-photo-editor"><span class="profile-photo-preview" id="profilePhotoPreview"><?php if ($profileImage !== ''): ?><img src="<?= htmlspecialchars($profileImage) ?>" alt="Selected profile picture"><?php else: ?><span><?= htmlspecialchars($profileInitial) ?></span><?php endif; ?></span><div class="profile-photo-copy"><strong>Profile picture</strong><p>Upload a JPG, PNG or WebP image up to 2 MB.</p><div class="upload-actions"><label class="secondary file-picker" for="profilePictureInput">Choose image</label><input id="profilePictureInput" type="file" accept="image/jpeg,image/png,image/webp" hidden><button id="uploadProfilePicture" class="primary" type="button" disabled>Upload picture</button></div><small id="profilePictureName">No new image selected.</small></div></div><div class="form-grid two-columns"><label>Full name<input id="accountFullName" maxlength="120" value="<?= htmlspecialchars($name) ?>"></label><label>Email address<input id="accountEmail" type="email" maxlength="190" value="<?= htmlspecialchars((string)$user['email']) ?>"></label></div><label>Preferred language<select id="accountLanguage"><?php foreach (['en'=>'English','ms'=>'Bahasa Malaysia','zh'=>'Mandarin Chinese','id'=>'Indonesian','th'=>'Thai'] as $code=>$label): ?><option value="<?= $code ?>" <?= ($user['preferred_language'] ?? 'en') === $code ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></label><button id="saveAccountProfile" class="primary">Save account details</button></article>
+                        <article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Account</span><h2>Personal details</h2></div></div><div class="profile-photo-editor"><span class="profile-photo-preview" id="profilePhotoPreview"><?php if (
+                            $profileImage !== ''
+                        ): ?><img src="<?= htmlspecialchars(
+    $profileImage,
+) ?>" alt="Selected profile picture"><?php else: ?><span><?= htmlspecialchars(
+    $profileInitial,
+) ?></span><?php endif; ?></span><div class="profile-photo-copy"><strong>Profile picture</strong><p>Upload a JPG, PNG or WebP image up to 2 MB.</p><div class="upload-actions"><label class="secondary file-picker" for="profilePictureInput">Choose image</label><input id="profilePictureInput" type="file" accept="image/jpeg,image/png,image/webp" hidden><button id="uploadProfilePicture" class="primary" type="button" disabled>Upload picture</button></div><small id="profilePictureName">No new image selected.</small></div></div><div class="form-grid two-columns"><label>Full name<input id="accountFullName" maxlength="120" value="<?= htmlspecialchars(
+    $name,
+) ?>"></label><label>Email address<input id="accountEmail" type="email" maxlength="190" value="<?= htmlspecialchars(
+    (string) $user['email'],
+) ?>"></label></div><label>Preferred language<select id="accountLanguage"><?php foreach (
+    [
+        'en' => 'English',
+        'ms' => 'Bahasa Malaysia',
+        'zh' => 'Mandarin Chinese',
+        'id' => 'Indonesian',
+        'th' => 'Thai',
+    ]
+    as $code => $label
+): ?><option value="<?= $code ?>" <?= ($user['preferred_language'] ?? 'en') === $code
+    ? 'selected'
+    : '' ?>><?= $label ?></option><?php endforeach; ?></select></label><button id="saveAccountProfile" class="primary">Save account details</button></article>
                         <?php if ($role === 'tourist'): ?>
                         <article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Travel preferences</span><h2>Make TourLingo work for you</h2></div></div><div class="form-grid two-columns"><label>Profile name<input id="profileName" maxlength="120"></label><label>Travel language<select id="profileLanguage"><?= language_options() ?></select></label><label>Default destination<input id="profileDestination" maxlength="120" placeholder="Where are you going next?"></label><label>Emergency contact<input id="profileEmergencyContact" maxlength="120"></label></div><div class="form-grid two-columns"><label>Accessibility settings<textarea id="profileAccessibility" maxlength="500"></textarea></label><label>Dietary preferences<textarea id="profileDietary" maxlength="500"></textarea></label><label>Allergies<textarea id="profileAllergy" maxlength="500"></textarea></label><label>Optional emergency details<textarea id="profileEmergencyDetails" maxlength="500"></textarea></label></div><div class="preference-row"><label class="switch-row"><span><strong>Large text</strong><small>Increase text and control sizes.</small></span><input type="checkbox" id="profileLargeText"></label><label class="switch-row"><span><strong>Automatic voice playback</strong><small>Read successful translations aloud.</small></span><input type="checkbox" id="profileVoice"></label></div><button id="saveProfile" class="primary">Save travel preferences</button></article>
                         <article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Privacy</span><h2>Data and consent</h2></div></div><label class="switch-row"><span><strong>Save translation history</strong><small>Keep your recent translations available.</small></span><input type="checkbox" id="historyConsent" checked></label><label class="switch-row"><span><strong>Share anonymous usage data</strong><small>Help improve common travel communication.</small></span><input type="checkbox" id="analyticsConsent"></label><button id="deleteJourneyData" class="danger ghost-danger">Delete saved journey data</button></article>
@@ -302,24 +417,57 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             </section>
             <?php endif; ?>
 
-            <footer>© <?= date('Y') ?> TourLingo · Multilingual travel communication for Malaysia</footer>
+            <footer>© <?= date(
+                'Y',
+            ) ?> TourLingo · Multilingual travel communication for Malaysia</footer>
         </div>
         <nav class="mobile-quick-nav" aria-label="Mobile navigation">
-            <?php if ($user): ?><button type="button" data-page="home"><?= nav_icon('home') ?><span>Home</span></button><?php endif; ?>
-            <button type="button" data-page="communication"><?= nav_icon('translate') ?><span>Translate</span></button>
-            <?php if ($role === 'admin' && $staff): ?><button type="button" data-page="insights"><?= nav_icon('chart') ?><span>Insights</span></button><button type="button" data-page="admin"><?= nav_icon('admin') ?><span>Admin</span></button><?php else: ?>
-                <?php if ($user): ?><button type="button" data-page="assistance"><?= nav_icon('compass') ?><span>Assistant</span></button><?php endif; ?>
-                <?php if ($role === 'tourist'): ?><button type="button" data-page="journey"><?= nav_icon('journey') ?><span>Journey</span></button><?php elseif ($approved): ?><button type="button" data-page="business"><?= nav_icon('store') ?><span>Business</span></button><?php elseif ($staff): ?><button type="button" data-page="insights"><?= nav_icon('chart') ?><span>Insights</span></button><?php endif; ?>
+            <?php if ($user): ?><button type="button" data-page="home"><?= nav_icon(
+    'home',
+) ?><span>Home</span></button><?php endif; ?>
+            <button type="button" data-page="communication"><?= nav_icon(
+                'translate',
+            ) ?><span>Translate</span></button>
+            <?php if (
+                $role === 'admin' &&
+                $staff
+            ): ?><button type="button" data-page="insights"><?= nav_icon(
+    'chart',
+) ?><span>Insights</span></button><button type="button" data-page="admin"><?= nav_icon(
+    'admin',
+) ?><span>Admin</span></button><?php else: ?>
+                <?php if ($user): ?><button type="button" data-page="assistance"><?= nav_icon(
+    'compass',
+) ?><span>Assistant</span></button><?php endif; ?>
+                <?php if (
+                    $role === 'tourist'
+                ): ?><button type="button" data-page="journey"><?= nav_icon(
+    'journey',
+) ?><span>Journey</span></button><?php elseif (
+                    $approved
+                ): ?><button type="button" data-page="business"><?= nav_icon(
+    'store',
+) ?><span>Business</span></button><?php elseif (
+                    $staff
+                ): ?><button type="button" data-page="insights"><?= nav_icon(
+    'chart',
+) ?><span>Insights</span></button><?php endif; ?>
             <?php endif; ?>
         </nav>
     </main>
 </div>
 <div id="toast" class="toast-message" role="status" aria-live="polite"></div>
 <div id="messageOverlay" class="emergency-overlay" role="dialog" aria-modal="true" aria-label="Large-screen translated message" aria-hidden="true"><button id="closeOverlay" type="button" aria-label="Close message">×</button><strong id="overlaySource"></strong><strong id="overlayTranslation"></strong><span id="overlayExtra"></span></div>
-<script>window.JOM={csrf:<?= json_encode(csrf_token()) ?>,authenticated:<?= $user ? 'true' : 'false' ?>,role:<?= json_encode($role) ?>};</script>
+<script>window.JOM={csrf:<?= json_encode(csrf_token()) ?>,authenticated:<?= $user
+    ? 'true'
+    : 'false' ?>,role:<?= json_encode($role) ?>};</script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>if(!window.QRCode){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"><\/script>');}</script>
-<script src="assets/js/core.js?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/js/core.js') ?: '1')) ?>"></script>
-<script src="assets/js/app.js?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/js/app.js') ?: '1')) ?>"></script>
+<script src="assets/js/core.js?v=<?= rawurlencode(
+    (string) (filemtime(__DIR__ . '/assets/js/core.js') ?: '1'),
+) ?>"></script>
+<script src="assets/js/app.js?v=<?= rawurlencode(
+    (string) (filemtime(__DIR__ . '/assets/js/app.js') ?: '1'),
+) ?>"></script>
 </body>
 </html>

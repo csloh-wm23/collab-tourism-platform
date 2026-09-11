@@ -7,7 +7,7 @@ require_once __DIR__ . '/config/security.php';
 
 if (is_logged_in()) {
     header('Location: index.php');
-    exit;
+    exit();
 }
 
 $error = '';
@@ -17,27 +17,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf'] ?? null)) {
         $error = 'Your form session expired. Please try again.';
     } else {
-        $email = mb_strtolower(trim((string)($_POST['email'] ?? '')));
-        $password = (string)($_POST['password'] ?? '');
+        $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
+        $password = (string) ($_POST['password'] ?? '');
 
         try {
             $db = database();
-            $stmt = $db->prepare('SELECT id, full_name, email, password_hash, role, status, preferred_language, failed_login_attempts, locked_until FROM users WHERE email = ? LIMIT 1');
+            $stmt = $db->prepare(
+                'SELECT id, full_name, email, password_hash, role, status, preferred_language, failed_login_attempts, locked_until FROM users WHERE email = ? LIMIT 1',
+            );
             $stmt->execute([$email]);
             $user = $stmt->fetch();
-            $locked = $user && !empty($user['locked_until']) && strtotime((string)$user['locked_until']) > time();
+            $locked =
+                $user &&
+                !empty($user['locked_until']) &&
+                strtotime((string) $user['locked_until']) > time();
 
             if ($locked) {
-                $minutes = max(1, (int)ceil((strtotime((string)$user['locked_until']) - time()) / 60));
+                $minutes = max(
+                    1,
+                    (int) ceil((strtotime((string) $user['locked_until']) - time()) / 60),
+                );
                 $error = "Too many failed attempts. Try again in {$minutes} minute(s).";
-            } elseif (!$user || !password_verify($password, (string)$user['password_hash'])) {
+            } elseif (!$user || !password_verify($password, (string) $user['password_hash'])) {
                 if ($user) {
-                    $state = failed_login_state((int)$user['failed_login_attempts']);
+                    $state = failed_login_state((int) $user['failed_login_attempts']);
                     if ($state['locked']) {
-                        $db->prepare('UPDATE users SET failed_login_attempts=0, locked_until=DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id=?')->execute([(int)$user['id']]);
+                        $db->prepare(
+                            'UPDATE users SET failed_login_attempts=0, locked_until=DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id=?',
+                        )->execute([(int) $user['id']]);
                         $error = 'Too many failed attempts. Try again in 15 minutes.';
                     } else {
-                        $db->prepare('UPDATE users SET failed_login_attempts=? WHERE id=?')->execute([$state['attempts'], (int)$user['id']]);
+                        $db->prepare(
+                            'UPDATE users SET failed_login_attempts=? WHERE id=?',
+                        )->execute([$state['attempts'], (int) $user['id']]);
                         $error = 'Incorrect email or password.';
                     }
                 } else {
@@ -46,13 +58,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($user['status'] === 'suspended') {
                 $error = 'This account is suspended.';
             } else {
-                $db->prepare('UPDATE users SET failed_login_attempts=0, locked_until=NULL WHERE id=?')->execute([(int)$user['id']]);
-                unset($user['password_hash'], $user['failed_login_attempts'], $user['locked_until']);
+                $db->prepare(
+                    'UPDATE users SET failed_login_attempts=0, locked_until=NULL WHERE id=?',
+                )->execute([(int) $user['id']]);
+                unset(
+                    $user['password_hash'],
+                    $user['failed_login_attempts'],
+                    $user['locked_until'],
+                );
                 // Replace the session ID after authentication to reduce session-fixation risk.
                 session_regenerate_id(true);
                 $_SESSION['user'] = $user;
                 header('Location: index.php');
-                exit;
+                exit();
             }
         } catch (PDOException $exception) {
             $error = 'Could not connect to the database.';
@@ -69,7 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="description" content="Sign in to your TourLingo travel communication account.">
     <title>Welcome back · TourLingo</title>
     <script>try{if(localStorage.getItem('jomcommunicate_theme')==='dark')document.documentElement.classList.add('dark-mode');}catch(error){}</script>
-    <link rel="stylesheet" href="assets/css/styles.css?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/css/styles.css') ?: '1')) ?>">
+    <link rel="stylesheet" href="assets/css/styles.css?v=<?= rawurlencode(
+        (string) (filemtime(__DIR__ . '/assets/css/styles.css') ?: '1'),
+    ) ?>">
 </head>
 <body class="auth-body">
     <aside class="auth-showcase">
@@ -88,8 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a class="brand-inline" href="index.php">← Back to TourLingo</a>
             <h1>Log in</h1>
             <p class="muted">Continue where your last journey left off.</p>
-            <?php if (isset($_GET['registered'])): ?><div class="alert good">Account created. You can now log in.</div><?php endif; ?>
-            <?php if ($error): ?><div class="alert error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+            <?php if (
+                isset($_GET['registered'])
+            ): ?><div class="alert good">Account created. You can now log in.</div><?php endif; ?>
+            <?php if ($error): ?><div class="alert error"><?= htmlspecialchars(
+    $error,
+) ?></div><?php endif; ?>
             <form method="post">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
                 <label>Email address<input type="email" name="email" autocomplete="email" required autofocus placeholder="you@example.com"></label>

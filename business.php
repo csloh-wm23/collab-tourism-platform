@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-$slug = trim((string)($_GET['slug'] ?? ''));
+$slug = trim((string) ($_GET['slug'] ?? ''));
 ?>
 <!doctype html>
 <html lang="en">
@@ -11,7 +11,9 @@ $slug = trim((string)($_GET['slug'] ?? ''));
     <meta name="description" content="Traveller-friendly business information and approved multilingual phrases from TourLingo.">
     <title>Tourism business · TourLingo</title>
     <script>try{if(localStorage.getItem('jomcommunicate_theme')==='dark')document.documentElement.classList.add('dark-mode');}catch(error){}</script>
-    <link rel="stylesheet" href="assets/css/styles.css?v=<?= rawurlencode((string)(filemtime(__DIR__ . '/assets/css/styles.css') ?: '1')) ?>">
+    <link rel="stylesheet" href="assets/css/styles.css?v=<?= rawurlencode(
+        (string) (filemtime(__DIR__ . '/assets/css/styles.css') ?: '1'),
+    ) ?>">
 </head>
 <body class="public-business">
     <header class="public-topbar">
@@ -38,7 +40,10 @@ $slug = trim((string)($_GET['slug'] ?? ''));
     </main>
     <div id="messageOverlay" class="emergency-overlay" role="dialog" aria-modal="true" aria-label="Approved business phrase" aria-hidden="true"><button id="closeOverlay" type="button" aria-label="Close message">×</button><strong id="overlaySource"></strong><strong id="overlayTranslation"></strong><span id="overlayExtra"></span></div>
 <script>
-const slug=<?= json_encode($slug, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?>,$=s=>document.querySelector(s),esc=v=>{const d=document.createElement('div');d.textContent=String(v??'');return d.innerHTML};
+const slug=<?= json_encode(
+    $slug,
+    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT,
+) ?>,$=s=>document.querySelector(s),esc=v=>{const d=document.createElement('div');d.textContent=String(v??'');return d.innerHTML};
 const publicThemeKey='jomcommunicate_theme';
 let overlayReturnFocus=null;
 function setPublicTheme(dark){document.documentElement.classList.toggle('dark-mode',dark);const button=$('#publicContrastButton');button.textContent=dark?'☀':'☾';button.setAttribute('aria-pressed',String(dark));button.setAttribute('aria-label',dark?'Enable light mode':'Enable dark mode');button.title=dark?'Enable light mode':'Enable dark mode';}
