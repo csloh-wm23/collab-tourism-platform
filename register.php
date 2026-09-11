@@ -92,7 +92,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <main class="auth-main">
         <section class="auth-card">
             <a class="brand-inline" href="index.php">← Back to TourLingo</a>
-            <span class="eyebrow">Join TourLingo</span>
             <h1>Create your account</h1>
             <p class="muted">Choose the account that fits your journey.</p>
             <?php if ($error): ?><div class="alert error"><?= htmlspecialchars($error) ?></div><?php endif; ?>

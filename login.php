@@ -82,7 +82,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <main class="auth-main">
         <section class="auth-card">
             <a class="brand-inline" href="index.php">← Back to TourLingo</a>
-            <span class="eyebrow">Account access</span>
             <h1>Log in</h1>
             <p class="muted">Continue where your last journey left off.</p>
             <?php if (isset($_GET['registered'])): ?><div class="alert good">Account created. You can now log in.</div><?php endif; ?>
