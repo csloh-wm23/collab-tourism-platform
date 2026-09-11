@@ -207,6 +207,9 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 <?php if ($user): ?>                        <div id="twoWayReplies" class="chip-row"></div><?php endif; ?>
                     </article>
                 </div>
+                <?php if (!$user): ?>
+                <p class="auth-foot">Want more features? <a href="register.php">Register now!</a></p>
+                <?php endif; ?>
 <?php if ($user): ?>
                 <article class="card-panel conversation-panel mt-large">
                     <div class="card-title-row"><div><span class="eyebrow">Conversation mode</span><h2>Conversation timeline</h2><p>Keep both sides of the conversation together with replay and retry controls.</p></div><button id="clearConversation" class="secondary" type="button">Clear conversation</button></div>
