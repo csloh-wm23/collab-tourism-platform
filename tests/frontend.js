@@ -13,4 +13,12 @@ assert.equal(core.speechRecognitionLanguage('auto','en-GB'),'en-GB');
 assert.equal(core.speechRecognitionLanguage('auto',''),'en-US');
 assert.equal(core.recoverableSpeechError('no-speech'),true);
 assert.equal(core.recoverableSpeechError('not-allowed'),false);
+assert(core.speechBiasPhrases().includes('cappuccino'));
+assert.equal(core.normalizeSpeechTranscript('capuccino'),'cappuccino');
+assert.equal(core.normalizeSpeechTranscript('I want tapuccino'),'I want cappuccino');
+assert.equal(core.normalizeSpeechTranscript('  I   want   coffee  , please  '),'I want coffee, please');
+assert.deepEqual(core.bestSpeechAlternative([
+    {transcript:'couple chino',confidence:.72},
+    {transcript:'cappuccino',confidence:.61}
+]),{transcript:'cappuccino',confidence:.72});
 console.log('PASS: frontend conversation and confidence behaviour');
