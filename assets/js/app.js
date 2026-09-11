@@ -25,7 +25,8 @@ function setTheme(dark){document.body.classList.toggle('dark-mode',dark);const b
 let darkMode=false;try{darkMode=localStorage.getItem(themeKey)==='dark';}catch(e){}setTheme(darkMode);
 const defaultPage=window.JOM.authenticated?'home':'communication';
 setMenu(false);$$('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));$('.brand')?.addEventListener('click',event=>{event.preventDefault();showPage(defaultPage);});window.addEventListener('hashchange',()=>showPage(location.hash.slice(1)||defaultPage,{updateHash:false}));window.addEventListener('resize',()=>setMenu(false));$('#menuButton')?.addEventListener('click',()=>{if(window.matchMedia('(max-width: 980px)').matches)setMenu(!$('.sidebar')?.classList.contains('open'),{restoreFocus:true});else setDesktopMenu(!document.body.classList.contains('sidebar-collapsed'),{restoreFocus:true});});$('#closeMenuButton')?.addEventListener('click',()=>setMenu(false,{restoreFocus:true}));$('#sidebarBackdrop')?.addEventListener('click',()=>setMenu(false,{restoreFocus:true}));document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('.sidebar')?.classList.contains('open'))setMenu(false,{restoreFocus:true});});$('#contrastButton')?.addEventListener('click',()=>{darkMode=!document.body.classList.contains('dark-mode');const applyTheme=()=>{setTheme(darkMode);try{localStorage.setItem(themeKey,darkMode?'dark':'light');}catch(e){}};if(document.startViewTransition&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(applyTheme);else applyTheme();});if($('#todayLabel'))$('#todayLabel').textContent=new Intl.DateTimeFormat('en-MY',{weekday:'short',day:'numeric',month:'short'}).format(new Date());
-$$('[data-scroll-target]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.scrollTarget)?.scrollIntoView({behavior:'smooth',block:'start'})));
+function scrollToSection(target,nav=null){if(!target)return;const headerHeight=$('.topbar')?.getBoundingClientRect().height||0;const navTop=nav?parseFloat(getComputedStyle(nav).top)||0:0;const offset=nav?Math.max(headerHeight,navTop)+nav.getBoundingClientRect().height+16:headerHeight+16;window.scrollTo({top:Math.max(0,window.scrollY+target.getBoundingClientRect().top-offset),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
+$$('[data-scroll-target]').forEach(button=>button.addEventListener('click',()=>scrollToSection(document.getElementById(button.dataset.scrollTarget))));
 document.addEventListener('click',event=>{const account=$('.account-menu');if(account?.open&&!account.contains(event.target))account.open=false;});
 
 function actions(on){['#speakResult','#copyResult','#savePhrase','#reportTranslation'].forEach(s=>{if($(s))$(s).disabled=!on;});}
@@ -125,7 +126,7 @@ async function loadAccountProfile(){
  renderProfileImage(p.profile_image||'');
 }
 let profilePicturePreview='';
-$$('[data-profile-section]').forEach(button=>button.addEventListener('click',()=>{const cards=$$('.profile-content > article'),target=cards[Number(button.dataset.profileSection)];target?.scrollIntoView({behavior:'smooth',block:'start'});}));
+$$('[data-profile-section]').forEach(button=>button.addEventListener('click',()=>{const cards=$$('.profile-content > article'),target=cards[Number(button.dataset.profileSection)];scrollToSection(target,button.closest('.profile-section-nav'));}));
 const profileDropzone=$('.profile-photo-editor');
 if(profileDropzone){
  ['dragenter','dragover'].forEach(type=>profileDropzone.addEventListener(type,event=>{event.preventDefault();profileDropzone.classList.add('drag-active');}));
