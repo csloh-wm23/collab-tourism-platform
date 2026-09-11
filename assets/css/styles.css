@@ -1321,7 +1321,7 @@ input:not([type="checkbox"]):not([type="radio"]), select, button, .small-button 
 @media (max-width: 480px) {
   .top-actions .primary-link { display: none; }
   .profile-chip > div, .menu-chevron { display: none; }
-  .situation-picker { display: flex; margin-inline: -12px; overflow-x: auto; padding: 2px 12px 10px; scroll-snap-type: x mandatory; }
+  .situation-picker { display: flex; margin-inline: 0; overflow-x: auto; padding: 2px 0 10px; scroll-snap-type: x mandatory; }
   .situation-picker button { flex: 0 0 94px; scroll-snap-align: start; }
   .profile-photo-editor { border-style: dashed; }
   .stat-grid { gap: 10px; grid-template-columns: repeat(2,minmax(0,1fr)); }
