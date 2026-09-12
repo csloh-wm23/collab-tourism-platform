@@ -121,6 +121,7 @@ try {
         $sampleQuestion->execute([$approvedId, $category, $language, $question, $token, $status, $reply, $status, $token]);
     }
 
+    $db->exec("INSERT IGNORE INTO tourist_profiles (user_id) SELECT id FROM users WHERE role='tourist'");
     $db->commit();
 } catch (Throwable $error) {
     if ($db->inTransaction()) {

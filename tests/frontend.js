@@ -1,10 +1,38 @@
 'use strict';
 const assert=require('node:assert/strict');
 const core=require('../assets/js/core.js');
+const savedExchange = {source:'你好', translation:'Hello', from:'zh', to:'en'};
+const restoredExchange = core.restoreConversation(savedExchange);
+assert.equal(restoredExchange.translation, 'Hello');
+assert.equal(restoredExchange.source, '你好');
+assert.equal(restoredExchange.confidence, null);
+assert.equal(restoredExchange.scenario, 'culture');
+assert.deepEqual(restoredExchange.suggestions, []);
+assert.deepEqual(savedExchange, {source:'你好', translation:'Hello', from:'zh', to:'en'});
+const detectedEnglish = {text:'Cappocino', language:'en'};
+assert.equal(core.spellingLanguage('Cappocino','auto',detectedEnglish),'en');
+assert.equal(core.spellingSuggestion('Cappocino',core.spellingLanguage('Cappocino','auto',detectedEnglish)),'Cappuccino');
+assert.equal(core.spellingSuggestion('restoren',core.spellingLanguage('restoren','auto',{text:'restoren',language:'ms'})),'restoran');
+assert.equal(core.spellingLanguage('new words','auto',detectedEnglish),null);
+assert.equal(core.spellingLanguage('Cappocino','auto',null),null);
+assert.equal(core.spellingLanguage('Cappocino','ms',detectedEnglish),'ms');
+assert.equal(core.spellingSuggestion('Cappocino',core.spellingLanguage('Cappocino','auto',{text:'Cappocino',language:'zh'})),null);
+assert.equal(core.spellingSuggestion('Cappocino, please!', 'en'), 'Cappuccino, please!');
+assert.equal(core.spellingSuggestion('RESTUARANT', 'en'), 'RESTAURANT');
+assert.equal(core.spellingSuggestion('Di mana stesyen dan restoren?', 'ms'), 'Di mana stesen dan restoran?');
+assert.equal(core.spellingSuggestion('Terimakasih', 'ms'), 'Terima kasih');
+assert.equal(core.spellingSuggestion('Cappocino', 'zh'), null);
+assert.equal(core.spellingSuggestion('Cappocino', 'auto'), null);
+assert.equal(core.spellingSuggestion('Cappocino', 'ms'), null);
+assert.equal(core.spellingSuggestion('mamak tapau surau nasi lemak KL Sentral', 'en'), null);
+assert.equal(core.spellingSuggestion('coffees coffe-shop cafécoffe', 'en'), null);
+assert.equal(core.spellingSuggestion('coffee restaurant cappuccino', 'en'), null);
+assert.equal(core.spellingSuggestion('x'.repeat(490) + ' capuccino', 'en'), null);
 
 assert.deepEqual(core.twoWayLanguages('auto','ms','en'),{source:'ms',target:'en'});
 assert.deepEqual(core.twoWayLanguages('en','th','en'),{source:'th',target:'en'});
-assert.equal(core.confidenceLabel(null),'Translation confidence: not provided by Google');
+assert.equal(core.confidenceLabel(null),'');
+assert.equal(core.confidenceLabel(undefined),'');
 assert.equal(core.confidenceLabel(0.74),'Confidence: 74%');
 assert.equal(core.normalizedAnalyticsLanguage('auto'),null);
 assert.equal(core.normalizedAnalyticsLanguage('id'),'id');
@@ -22,3 +50,8 @@ assert.deepEqual(core.bestSpeechAlternative([
     {transcript:'cappuccino',confidence:.61}
 ]),{transcript:'cappuccino',confidence:.72});
 console.log('PASS: frontend conversation and confidence behaviour');
+assert.equal(core.savedSource({title:'short', metadata:JSON.stringify({source_text:'x'.repeat(500)})}).length,500);
+assert.equal(core.savedSource({title:'legacy',metadata:'broken'}),'legacy');
+assert.equal(core.quickReplies('ms')[1],'Tidak, terima kasih.');
+assert.equal(core.quickReplies('zh')[0],'好的，谢谢。');
+assert.deepEqual(core.quickReplies('auto'),[]);

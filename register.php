@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <span class="eyebrow light-eyebrow">Start with TourLingo</span>
             <h1>Feel understood, wherever you go.</h1>
             <p>Create a personal travel space or connect your tourism business with multilingual visitors.</p>
-            <div class="auth-points"><span><i></i>Save language and accessibility preferences</span><span><i></i>Keep destination packs ready offline</span><span><i></i>Give travellers approved business answers</span></div>
+            <div class="auth-points"><span><i></i>Save language and accessibility preferences</span><span><i></i>Save destination phrase packs</span><span><i></i>Give travellers approved business answers</span></div>
         </div>
         <small>TourLingo · Built for clearer journeys in Malaysia</small>
     </aside>

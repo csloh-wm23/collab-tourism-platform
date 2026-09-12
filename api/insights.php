@@ -71,7 +71,7 @@ try {
     $event->execute($eventParams);
     $events = $event->fetchAll();
 
-    $reportWhere = ['created_at>=?', 'created_at<DATE_ADD(?,INTERVAL 1 DAY)'];
+    $reportWhere = ['created_at>=?', 'created_at<DATE_ADD(?,INTERVAL 1 DAY)', "status<>'resolved'"];
     $reportParams = [$from, $to];
     if ($language !== '') {
         $reportWhere[] = 'target_language=?';
@@ -254,10 +254,15 @@ try {
         'location' => $location,
         'business_type' => $businessType,
     ];
+    // Anonymous datasets do not all contain location/business dimensions. State their
+    // actual scope instead of implying that unavailable dimensions have been filtered.
+    $filterScope = 'Activity and peak periods: all filters. Saved translations and unresolved reports: date, language and scenario only (location/business type are not retained). Business enquiries: date, language and business type only. Approved/pending businesses: current global totals.';
     if (($_GET['format'] ?? '') === 'csv') {
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="jomcommunicate-anonymous-report.csv"');
         $out = fopen('php://output', 'w');
+        fputcsv($out, ['Filter scope', $filterScope]);
+        foreach ($filters as $key => $value) fputcsv($out, ['Filter', $key, $value]);
         fputcsv($out, [
             'section',
             'dimension 1',
@@ -342,6 +347,7 @@ try {
             'peak_periods' => $peakRows,
             'recommendations' => $recommendations,
             'filters' => $filters,
+            'filter_scope' => $filterScope,
         ],
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
     );

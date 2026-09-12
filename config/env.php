@@ -24,3 +24,4 @@ function load_env(string $path): void
 }
 
 load_env(dirname(__DIR__) . '/.env');
+date_default_timezone_set('Asia/Kuala_Lumpur');

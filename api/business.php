@@ -27,6 +27,10 @@ try {
     $bid = (int) $business['id'];
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     if ($method === 'GET') {
+        $review = $db->prepare("SELECT details FROM audit_logs WHERE area='Registrations' AND JSON_UNQUOTE(JSON_EXTRACT(details,'$.business_id'))=? ORDER BY id DESC LIMIT 1");
+        $review->execute([(string) $bid]);
+        $decision = json_decode((string) ($review->fetchColumn() ?: '{}'), true);
+        $business['review_reason'] = $decision['reason'] ?? '';
         if (
             ($business['verification_status'] ?? '') !== 'approved' ||
             ($user['status'] ?? '') !== 'active'
@@ -89,6 +93,7 @@ try {
     }
     $action = (string) ($input['action'] ?? '');
     if ($action === 'resubmit_application') {
+        if ($user['status'] === 'suspended') business_reply(['ok' => false, 'message' => 'Suspended accounts cannot resubmit applications.'], 403);
         $name = clean_text($input['name'] ?? '', 160, true);
         $category = clean_text($input['category'] ?? '', 80, true);
         $address = clean_text($input['address'] ?? '', 500, true);

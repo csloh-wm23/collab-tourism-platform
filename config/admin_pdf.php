@@ -30,7 +30,7 @@ final class AdminPdfDocument
             ['Active users', (string) $stats['users']],
             ['Approved businesses', (string) $stats['businesses']],
             ['Pending review', (string) $stats['pending']],
-            ['Translations', (string) $stats['translations']],
+            ['Saved translations', (string) $stats['translations']],
         ];
         $gap = 8.0;
         $width = (self::WIDTH - self::MARGIN * 2 - $gap * 3) / 4;
@@ -45,7 +45,8 @@ final class AdminPdfDocument
 
     public function section(string $title): void
     {
-        $this->ensureSpace(38);
+        // Keep the heading, table header and first data row on the same page.
+        $this->ensureSpace(82);
         $this->text(self::MARGIN, $this->y + 13, 13, $title, true, '0.028 0.118 0.165');
         $this->line(
             self::MARGIN,
@@ -273,7 +274,7 @@ final class AdminPdfDocument
 function render_admin_pdf(array $data): string
 {
     $pdf = new AdminPdfDocument();
-    $generated = (new DateTimeImmutable((string) $data['generated_at']))->format('j M Y, g:i a');
+    $generated = (new DateTimeImmutable((string) $data['generated_at']))->setTimezone(new DateTimeZone('Asia/Kuala_Lumpur'))->format('j M Y, g:i a') . ' MYT (UTC+08:00)';
     $pdf->heading($generated);
     $pdf->summary($data['stats']);
 
@@ -320,6 +321,6 @@ function render_admin_pdf(array $data): string
         ],
         $data['recent_activity'],
     );
-    $pdf->table(['Date', 'Administrator', 'Action', 'Area'], $activityRows, [112, 130, 169, 100]);
+    $pdf->table(['Date (MYT)', 'Staff member', 'Action', 'Area'], $activityRows, [112, 130, 169, 100]);
     return $pdf->output();
 }

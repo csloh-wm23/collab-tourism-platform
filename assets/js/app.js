@@ -5,10 +5,20 @@
     'use strict';
     const $ = (s) => document.querySelector(s),
         $$ = (s) => Array.from(document.querySelectorAll(s));
-    const storageKey = 'jomcommunicate_records_v3',
-        privacyKey = 'jomcommunicate_privacy_v3',
-        conversationKey = 'tourlingo_conversation_v1',
-        emergencyKey = 'tourlingo_emergency_card_v1';
+    // Personal caches belong to an account, never to the next person using this browser.
+    const accountPrefix = 'tourlingo:user:' + (window.JOM.userId || 'guest') + ':';
+    const storageKey = accountPrefix + 'records',
+        privacyKey = accountPrefix + 'privacy',
+        conversationKey = accountPrefix + 'conversation',
+        emergencyKey = accountPrefix + 'emergency';
+    // Legacy shared caches have no reliable owner; do not migrate them into an account.
+    try {
+        Object.keys(localStorage).filter((key) =>
+            ['jomcommunicate_records_v3', 'jomcommunicate_privacy_v3',
+                'tourlingo_conversation_v1', 'tourlingo_emergency_card_v1'].includes(key) ||
+            key.startsWith('jompack:')).forEach((key) => localStorage.removeItem(key));
+    } catch (e) {}
+    let translationVersion = 0, activeTranslationRequest = 0;
     const themeKey = 'jomcommunicate_theme';
     const locales = { en: 'en-US', ms: 'ms-MY', zh: 'zh-CN', id: 'id-ID', th: 'th-TH' };
     const names = {
@@ -70,6 +80,10 @@
                 ...(options.headers || {})
             },
             ...options
+        }).catch(() => {
+            const error = 'Connection lost. The change could not be confirmed. Check your connection and try again.';
+            toast(error);
+            return new Response(JSON.stringify({ok:false, message:error}), {status:503, headers:{'Content-Type':'application/json'}});
         });
     }
     function privacy() {
@@ -88,6 +102,9 @@
             button = $('#menuButton');
         if (!sidebar || !button) return;
         const drawer = window.matchMedia('(max-width: 980px)').matches;
+        const background = $('.main-area');
+        if (background) background.inert = drawer && open;
+        sidebar.inert = drawer ? !open : document.body.classList.contains('sidebar-collapsed');
         if (!drawer) {
             sidebar.classList.remove('open');
             document.body.classList.remove('drawer-open');
@@ -103,13 +120,19 @@
         sidebar.setAttribute('aria-hidden', String(!open));
         button.setAttribute('aria-expanded', String(open));
         button.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
-        if (open) $('#closeMenuButton')?.focus();
+        if (open) {
+            const first = sidebar.querySelector('button:not([hidden]), a[href]');
+            requestAnimationFrame(() => {
+                if (sidebar.classList.contains('open')) first?.focus({preventScroll:true});
+            });
+        }
         else if (restoreFocus) button.focus();
     }
     function setDesktopMenu(collapsed, { restoreFocus = false } = {}) {
         const sidebar = $('.sidebar'),
             button = $('#menuButton');
         document.body.classList.toggle('sidebar-collapsed', collapsed);
+        if (sidebar) sidebar.inert = collapsed;
         sidebar?.setAttribute('aria-hidden', String(collapsed));
         button?.setAttribute('aria-expanded', String(!collapsed));
         button?.setAttribute('aria-label', collapsed ? 'Open navigation' : 'Close navigation');
@@ -166,8 +189,21 @@
             });
     });
     $('#closeMenuButton')?.addEventListener('click', () => setMenu(false, { restoreFocus: true }));
+    $('.sidebar')?.addEventListener('transitionend', () => {
+        const sidebar = $('.sidebar');
+        if (sidebar.classList.contains('open') && !sidebar.contains(document.activeElement)) {
+            $('#closeMenuButton')?.focus({preventScroll:true});
+        }
+    });
     $('#sidebarBackdrop')?.addEventListener('click', () => setMenu(false, { restoreFocus: true }));
     document.addEventListener('keydown', (event) => {
+        if (event.key === 'Tab' && $('.sidebar')?.classList.contains('open')) {
+            const targets = Array.from($('.sidebar').querySelectorAll('a[href], button:not(:disabled), [tabindex="0"]')).filter((el) => el.getClientRects().length);
+            const first = targets[0], last = targets.at(-1);
+            if (!$('.sidebar').contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); }
+            else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        }
         if (event.key === 'Escape' && $('.sidebar')?.classList.contains('open'))
             setMenu(false, { restoreFocus: true });
     });
@@ -220,11 +256,45 @@
             if ($(s)) $(s).disabled = !on;
         });
     }
+    let dismissedSpelling = '';
+    let spellingDetection = null;
+    function currentSpellingLanguage() {
+        return window.JomCore.spellingLanguage(
+            $('#sourceText').value, $('#sourceLanguage').value, spellingDetection
+        );
+    }
+    function updateSpellingSuggestion() {
+        const panel = $('#spellingSuggestion');
+        if (!panel) return;
+        const text = $('#sourceText').value, language = currentSpellingLanguage();
+        const suggestion = window.JomCore.spellingSuggestion(text, language);
+        panel.hidden = !suggestion || dismissedSpelling === language + ':' + text;
+        $('#suggestedSpelling').textContent = suggestion || '';
+    }
+    $('#useSpellingSuggestion')?.addEventListener('click', () => {
+        // Recompute on click so an old suggestion can never overwrite a newer message.
+        const input = $('#sourceText');
+        const suggestion = window.JomCore.spellingSuggestion(input.value, currentSpellingLanguage());
+        if (!suggestion) return updateSpellingSuggestion();
+        input.value = suggestion;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+    });
+    $('#dismissSpellingSuggestion')?.addEventListener('click', () => {
+        dismissedSpelling = currentSpellingLanguage() + ':' + $('#sourceText').value;
+        updateSpellingSuggestion();
+        $('#sourceText').focus();
+    });
     function invalidate() {
+        translationVersion++;
+        spellingDetection = null;
+        updateSpellingSuggestion();
         current = null;
         actions(false);
-        if ($('#translationResult'))
-            $('#translationResult').textContent = 'Translation out of date. Press Translate.';
+        if ($('#translationResult')) $('#translationResult').textContent = '';
+        if ($('#translationMeta')) $('#translationMeta').textContent = '';
+        if ($('#translationAlternatives')) $('#translationAlternatives').textContent = '';
+        if ($('#twoWayReplies')) $('#twoWayReplies').textContent = '';
     }
     function setSpeechUi(active) {
         const start = $('#listenInput'),
@@ -392,6 +462,9 @@
     // api/translate.php. Display the response, then save history only for signed-in users.
     // A missing provider confidence score stays null instead of becoming an invented percentage.
     async function translate() {
+        const requestVersion = ++translationVersion;
+        activeTranslationRequest = requestVersion;
+        const conversationEnabled = Boolean($('#twoWayMode')?.checked);
         const text = $('#sourceText').value.trim(),
             from = $('#sourceLanguage').value,
             to = $('#targetLanguage').value,
@@ -424,6 +497,13 @@
                 if (!r.ok) throw new Error(await message(r, 'Translation failed.'));
                 data = await r.json();
             }
+            if (requestVersion !== translationVersion) return;
+            // Do not apply a delayed response's language to text edited during the request.
+            if (from === 'auto' && $('#sourceLanguage').value === from &&
+                $('#sourceText').value.trim() === text) {
+                spellingDetection = { text, language: data.detected_language };
+                updateSpellingSuggestion();
+            }
             const confidence =
                 data.confidence === null || data.confidence === undefined
                     ? null
@@ -442,10 +522,11 @@
             };
             $('#translationResult').textContent = current.translation;
             $('#translationMeta').textContent =
-                'Detected: ' +
+                'Detected language: ' +
                 (names[current.from] || current.from) +
-                ' · ' +
-                window.JomCore.confidenceLabel(confidence);
+                (window.JomCore.confidenceLabel(confidence)
+                    ? ' · ' + window.JomCore.confidenceLabel(confidence)
+                    : '');
             const context = [
                 ...current.alternatives,
                 ...current.suggestions.map(
@@ -464,25 +545,30 @@
                 : '';
             actions(true);
             renderTwoWay();
-            addConversation(current);
+            const exchange = current;
+            if (conversationEnabled) addConversation(exchange);
             if (window.JOM.authenticated && $('#historyConsent')?.checked !== false)
                 await saveRecord({
                     record_type: 'translation',
                     title: text,
-                    content: current.translation,
-                    source_language: current.from,
+                    content: exchange.translation,
+                    source_language: exchange.from,
                     target_language: to,
                     scenario,
                     confidence,
-                    metadata: { from: current.from, to, scenario }
-                });
-            await track('translation', to, scenario, current.matchedTerms[0] || '', confidence);
-            prepareNextTwoWayTurn(current, from);
+                    metadata: { from: exchange.from, to, scenario, source_text: text }
+                }).catch((e) => toast('Translated, but history was not saved: ' + e.message));
+            if (requestVersion !== translationVersion) return;
+            await track('translation', to, scenario, exchange.matchedTerms[0] || '', confidence).catch(() => {});
+            if (requestVersion !== translationVersion) return;
+            if (conversationEnabled) prepareNextTwoWayTurn(exchange, from);
             if ($('#profileVoice')?.checked) await speak();
         } catch (e) {
+            if (requestVersion !== translationVersion) return;
             $('#translationResult').textContent = e.message;
             toast(e.message);
         } finally {
+            if (activeTranslationRequest !== requestVersion) return;
             button.disabled = false;
             button.textContent = 'Translate message';
         }
@@ -494,7 +580,7 @@
             e.innerHTML = '';
             return;
         }
-        const replies = ['Yes, please.', 'No, thank you.', 'Could you repeat that?'];
+        const replies = window.JomCore.quickReplies(current.to);
         e.innerHTML = replies
             .map(
                 (v) =>
@@ -531,6 +617,8 @@
         $('#targetLanguage').value = direction.target;
         $('#sourceText').value = '';
         $('#characterCount').textContent = '0';
+        spellingDetection = null;
+        updateSpellingSuggestion();
         toast(
             'Ready for ' +
                 (names[direction.source] || direction.source) +
@@ -541,11 +629,15 @@
     }
     function persistConversation() {
         try {
+            if (!window.JOM.authenticated || $('#historyConsent')?.checked !== true) {
+                localStorage.removeItem(conversationKey);
+                return;
+            }
             localStorage.setItem(conversationKey, JSON.stringify(conversationMessages.slice(-30)));
         } catch (e) {}
     }
     function addConversation(exchange) {
-        if (!window.JOM.authenticated) return;
+        if (!window.JOM.authenticated || !$('#twoWayMode')?.checked) return;
         const twoWay = $('#twoWayMode')?.checked,
             speaker =
                 twoWay && conversationMessages.at(-1)?.speaker === 'speaker-a'
@@ -565,6 +657,9 @@
     function renderConversation() {
         const el = $('#conversationTimeline');
         if (!el) return;
+        const enabled = Boolean(window.JOM.authenticated && $('#twoWayMode')?.checked);
+        el.closest('.conversation-panel').hidden = !enabled;
+        if (!enabled) return;
         el.innerHTML = conversationMessages.length
             ? conversationMessages
                   .map(
@@ -601,8 +696,10 @@
                     const action = button.dataset.conversationAction;
                     if (action === 'replay') await speakMessage(row.translation, row.to);
                     if (action === 'copy') {
-                        await navigator.clipboard.writeText(row.source + '\n' + row.translation);
-                        toast('Conversation message copied.');
+                        try {
+                            await navigator.clipboard.writeText(row.source + '\n' + row.translation);
+                            toast('Conversation message copied.');
+                        } catch (e) { toast('Clipboard access was blocked. Select and copy the message manually.'); }
                     }
                     if (action === 'edit' || action === 'retry') {
                         $('#sourceText').value = row.source;
@@ -611,7 +708,18 @@
                         $('#characterCount').textContent = row.source.length;
                         invalidate();
                         $('#sourceText').focus();
-                        if (action === 'retry') translate();
+                        if (action === 'edit') {
+                            // Restore the existing result without another API call or timeline entry.
+                            // Any subsequent input change invalidates this restored result as usual.
+                            current = window.JomCore.restoreConversation(row);
+                            translationScenario = current.scenario;
+                            $('#translationResult').textContent = current.translation;
+                            $('#translationMeta').textContent =
+                                (names[current.from] || current.from) + ' → ' +
+                                (names[current.to] || current.to);
+                            actions(true);
+                            renderTwoWay();
+                        } else translate();
                     }
                 })
         );
@@ -630,23 +738,30 @@
         const url = URL.createObjectURL(await r.blob()),
             audio = new Audio(url);
         audio.onended = () => URL.revokeObjectURL(url);
-        audio.play();
+        audio.onerror = () => { URL.revokeObjectURL(url); toast('Audio could not play. Please try again.'); };
+        try { await audio.play(); }
+        catch (e) { URL.revokeObjectURL(url); toast('Playback was blocked. Press Voice to try again.'); }
     }
     async function speak() {
         if (current) await speakMessage(current.translation, current.to);
     }
     async function report() {
         if (!current) return;
-        const notes = prompt('What is unclear? (optional)') ?? '';
+        const exchange = current;
+        const notes = prompt('What is unclear? Editors and admins can read this note. Do not include private details. (optional)');
+        if (notes === null) return;
+        const shareText = confirm('Share the original and translated message with editors and admins for review? Choose Cancel to report without sharing the message text.');
+        try {
         const r = await jsonFetch('api/report.php', {
             method: 'POST',
             body: JSON.stringify({
-                source_text: current.source,
-                translated_text: current.translation,
-                source_language: current.from,
-                target_language: current.to,
-                scenario: current.scenario,
-                confidence: current.confidence,
+                source_text: exchange.source,
+                translated_text: exchange.translation,
+                source_language: exchange.from,
+                target_language: exchange.to,
+                scenario: exchange.scenario,
+                confidence: exchange.confidence,
+                share_text: shareText,
                 issue_type:
                     current.confidence !== null && current.confidence < 0.7
                         ? 'low_confidence'
@@ -657,6 +772,7 @@
             })
         });
         toast(r.ok ? 'Translation reported.' : await message(r, 'Could not report.'));
+        } catch (e) { toast('Could not submit the report. Check your connection and try again.'); }
     }
     $('#sourceText')?.addEventListener('input', () => {
         translationScenario = 'culture';
@@ -666,7 +782,10 @@
     $('#sourceLanguage')?.addEventListener('change', invalidate);
     $('#targetLanguage')?.addEventListener('change', invalidate);
     $('#translateButton')?.addEventListener('click', translate);
-    $('#twoWayMode')?.addEventListener('change', renderTwoWay);
+    $('#twoWayMode')?.addEventListener('change', () => {
+        renderTwoWay();
+        renderConversation();
+    });
     $('#swapLanguages')?.addEventListener('click', () => {
         const a = $('#sourceLanguage').value;
         if (a === 'auto') {
@@ -686,7 +805,7 @@
         'click',
         () =>
             current &&
-            navigator.clipboard.writeText(current.translation).then(() => toast('Copied.'))
+            navigator.clipboard.writeText(current.translation).then(() => toast('Copied.')).catch(() => toast('Clipboard access was blocked. Select and copy the message manually.'))
     );
     $('#reportTranslation')?.addEventListener('click', report);
     try {
@@ -778,7 +897,7 @@
                 body: JSON.stringify({ ...row, csrf: window.JOM.csrf })
             });
             if (r.ok) row.id = (await r.json()).id;
-            else return;
+            else throw new Error(await message(r, 'Could not save this message.'));
         } else {
             row.id = 'local-' + Date.now();
             const l = localRecords();
@@ -794,20 +913,24 @@
                 storageKey,
                 JSON.stringify(localRecords().filter((r) => String(r.id) !== String(id)))
             );
-        else
-            await fetch('api/records.php?id=' + encodeURIComponent(id), {
+        else {
+            const response = await fetch('api/records.php?id=' + encodeURIComponent(id), {
                 method: 'DELETE',
                 headers: { 'X-CSRF-Token': window.JOM.csrf }
             });
+            if (!response.ok) throw new Error(await message(response, 'Could not delete this message.'));
+        }
         records = records.filter((r) => String(r.id) !== String(id));
         renderRecords();
     }
     async function favorite(id, on) {
-        if (!String(id).startsWith('local-'))
-            await jsonFetch('api/records.php', {
+        if (!String(id).startsWith('local-')) {
+            const response = await jsonFetch('api/records.php', {
                 method: 'PATCH',
                 body: JSON.stringify({ id: Number(id), is_favorite: on, csrf: window.JOM.csrf })
             });
+            if (!response.ok) throw new Error(await message(response, 'Could not update this favourite.'));
+        }
         const row = records.find((r) => String(r.id) === String(id));
         if (row) row.is_favorite = on ? 1 : 0;
         if (String(id).startsWith('local-'))
@@ -818,11 +941,12 @@
         const favorite = Number(r.is_favorite),
             favoriteLabel = favorite ? 'Remove from favourites' : 'Add to favourites';
         return (
-            '<div class="record-item"><div><strong>' +
+            '<div class="record-item"><button type="button" class="saved-message-open" data-open-record="' +
+            escapeHtml(r.id) + '" title="Open in translator"><strong>' +
             escapeHtml(r.title) +
             '</strong><small>' +
             escapeHtml(r.content) +
-            '</small></div><span><button type="button" data-fav="' +
+            '</small></button><span><button type="button" data-fav="' +
             escapeHtml(r.id) +
             '" aria-label="' +
             favoriteLabel +
@@ -848,9 +972,36 @@
             $('#savedPhrases').innerHTML = saved.length
                 ? saved.map(recordRow).join('')
                 : '<div class="empty-state">No favourites yet.</div>';
-        $$('[data-del]').forEach((b) => (b.onclick = () => removeRecord(b.dataset.del)));
+        $$('[data-open-record]').forEach((button) => {
+            button.onclick = () => {
+                const row = records.find((r) => String(r.id) === button.dataset.openRecord);
+                if (!row) return;
+                // Use the stored translation directly, without an API call or new history entry.
+                const source = window.JomCore.savedSource(row);
+                $('#sourceText').value = source;
+                $('#sourceLanguage').value = row.source_language || 'auto';
+                $('#targetLanguage').value = row.target_language || 'ms';
+                $('#characterCount').textContent = source.length;
+                invalidate();
+                current = window.JomCore.restoreConversation({
+                    source, translation: row.content,
+                    from: row.source_language || 'auto', to: row.target_language || 'ms',
+                    scenario: row.scenario, confidence: row.confidence
+                });
+                translationScenario = current.scenario;
+                $('#translationResult').textContent = current.translation;
+                $('#translationMeta').textContent =
+                    (names[current.from] || current.from) + ' → ' + (names[current.to] || current.to);
+                actions(true);
+                renderTwoWay();
+                showPage('communication');
+                $('#largeMessage').scrollIntoView({ block: 'center', behavior: 'smooth' });
+                $('#largeMessage').focus({ preventScroll: true });
+            };
+        });
+        $$('[data-del]').forEach((b) => (b.onclick = () => removeRecord(b.dataset.del).catch((e) => toast(e.message))));
         $$('[data-fav]').forEach(
-            (b) => (b.onclick = () => favorite(b.dataset.fav, b.textContent === '☆'))
+            (b) => (b.onclick = () => favorite(b.dataset.fav, b.textContent === '☆').catch((e) => toast(e.message)))
         );
     }
     $('#savePhrase')?.addEventListener(
@@ -866,8 +1017,8 @@
                 scenario: current.scenario,
                 confidence: current.confidence,
                 is_favorite: true,
-                metadata: {}
-            }).then(() => toast('Phrase saved as a favourite.'))
+                metadata: { source_text: current.source }
+            }).then(() => toast('Phrase saved as a favourite.')).catch((e) => toast(e.message))
     );
 
     async function loadGlossary() {
@@ -902,7 +1053,7 @@
     }
     function assistanceCacheKey(destination = $('#packDestination').value.trim() || 'Malaysia') {
         return (
-            'jompack:' +
+            accountPrefix + 'pack:' +
             destination +
             ':' +
             $('#scenarioSelect').value +
@@ -931,6 +1082,7 @@
                 'Choose your destination and language, then build the guide.';
     }
     async function buildAssistantGuide() {
+        if ($('#assistantBuilder')) $('#assistantBuilder').hidden = false;
         setAssistantStage(2);
         await loadAssistance();
         const ready = scenarioPhrases.length > 0;
@@ -1066,7 +1218,9 @@
             toast('Build a phrase pack before saving it.');
             return;
         }
-        localStorage.setItem(assistanceCacheKey(destination), JSON.stringify(scenarioPhrases));
+        try { localStorage.setItem(assistanceCacheKey(destination), JSON.stringify(scenarioPhrases)); }
+        catch (e) { toast('Your browser could not store this pack. Free some browser storage and try again.'); return; }
+        try {
         if (window.JOM.role === 'tourist') {
             const r = await jsonFetch('api/tourist.php', {
                 method: 'POST',
@@ -1079,12 +1233,13 @@
                 })
             });
             if (!r.ok) {
-                toast(await message(r, 'Could not save pack.'));
+                toast('Saved on this device, but not to your account. ' + await message(r, 'Try again when connected.'));
                 return;
             }
             loadProfile();
         }
         toast(destination + ' phrase pack saved on this device.');
+        } catch (e) { toast('Saved on this device only. Reconnect to save it to your account. Keep this page open to use it offline.'); }
     });
     $('#prepareNeeds')?.addEventListener('click', async () => {
         const parts = [];
@@ -1135,6 +1290,7 @@
             translation = await translateAssistanceMessage(source, 'emergency');
         } catch (e) {
             toast('Using the built-in Malay emergency phrase.');
+            translation += '\n\nButiran asal (belum diterjemahkan): ' + source;
         }
         return { source, translation, saved_at: new Date().toISOString() };
     }
@@ -1143,7 +1299,8 @@
     );
     $('#saveEmergencyCard')?.addEventListener('click', async () => {
         const card = await buildEmergencyCard();
-        localStorage.setItem(emergencyKey, JSON.stringify(card));
+        try { localStorage.setItem(emergencyKey, JSON.stringify(card)); }
+        catch (e) { toast('Your browser could not save the emergency card. You can still show it now.'); showEmergencyCard(card); return; }
         $('#openSavedEmergency').hidden = false;
         $('#emergencySaveStatus').textContent =
             'Emergency card saved on this device · ' + new Date(card.saved_at).toLocaleString();
@@ -1169,21 +1326,33 @@
 
     async function loadPreferences() {
         let p = privacy();
-        const r = await fetch('api/preferences.php');
-        if (r.ok) p = (await r.json()).preferences;
+        try {
+            const r = await fetch('api/preferences.php');
+            if (r.ok) p = (await r.json()).preferences;
+            else p = {save_history:false,analytics:false};
+        } catch (e) { p = {save_history:false,analytics:false}; }
         if ($('#historyConsent')) $('#historyConsent').checked = !!p.save_history;
         if ($('#analyticsConsent')) $('#analyticsConsent').checked = !!p.analytics;
+        try { localStorage.setItem(privacyKey, JSON.stringify(p)); } catch (e) {}
+        if (!p.save_history) {
+            conversationMessages = [];
+            persistConversation();
+            renderConversation();
+        }
     }
     async function savePreferences() {
         const p = {
             save_history: $('#historyConsent').checked,
             analytics: $('#analyticsConsent').checked
         };
-        if (!window.JOM.authenticated) localStorage.setItem(privacyKey, JSON.stringify(p));
         const r = await jsonFetch('api/preferences.php', {
             method: 'POST',
             body: JSON.stringify({ ...p, csrf: window.JOM.csrf })
         });
+        if (r.ok) {
+            localStorage.setItem(privacyKey, JSON.stringify(p));
+            persistConversation();
+        } else await loadPreferences();
         toast(
             r.ok ? 'Privacy choices saved.' : await message(r, 'Could not save privacy choices.')
         );
@@ -1227,6 +1396,22 @@
         Object.entries(map).forEach(([id, k]) => {
             if ($('#' + id)) $('#' + id).value = p[k] || '';
         });
+        // Apply saved defaults until the traveller edits the assistant's own fields.
+        const assistanceDefaults = {
+            assistDietary: p.dietary_notes, assistAllergy: p.allergy_notes,
+            assistEmergency: [p.emergency_details, p.emergency_contact].filter(Boolean).join(' · '),
+            packDestination: p.default_destination || 'Malaysia',
+            assistantLanguage: p.preferred_language || 'ms'
+        };
+        Object.entries(assistanceDefaults).forEach(([id, value]) => {
+            const field = $('#' + id);
+            if (!field || field.dataset.userEdited) return;
+            field.value = value || '';
+            if (!field.dataset.defaultsBound) {
+                field.addEventListener('input', () => { field.dataset.userEdited = 'true'; });
+                field.dataset.defaultsBound = 'true';
+            }
+        });
         if ($('#profileLargeText')) $('#profileLargeText').checked = !!Number(p.large_text);
         if ($('#profileVoice')) $('#profileVoice').checked = !!Number(p.voice_playback);
         document.body.classList.toggle('large-text', !!Number(p.large_text));
@@ -1242,14 +1427,14 @@
             $('#destinationPacks').innerHTML = d.packs.length
                 ? d.packs
                       .map(
-                          (x) =>
+                          (x, packIndex) =>
                               '<div class="record-item"><div><strong>' +
                               escapeHtml(x.destination) +
                               '</strong><small>' +
                               escapeHtml(x.scenario) +
                               ' · ' +
                               escapeHtml(names[x.language_code] || x.language_code) +
-                              '</small></div><button aria-label="Remove destination pack" data-remove-pack="' +
+                              '</small></div><button type="button" class="secondary" data-open-pack="' + packIndex + '">Open</button><button aria-label="Remove destination pack" data-remove-pack="' +
                               escapeHtml(x.destination) +
                               '" data-remove-scenario="' +
                               escapeHtml(x.scenario) +
@@ -1259,6 +1444,16 @@
                       )
                       .join('')
                 : '<div class="empty-state">No destination packs.</div>';
+        $$('[data-open-pack]').forEach((button) => button.onclick = async () => {
+            const pack = d.packs[Number(button.dataset.openPack)];
+            $('#packDestination').value = pack.destination;
+            $('#scenarioSelect').value = pack.scenario;
+            $('#assistantLanguage').value = pack.language_code;
+            $$('[data-scenario-choice]').forEach((card) => card.classList.toggle('active', card.dataset.scenarioChoice === pack.scenario));
+            showPage('assistance');
+            await buildAssistantGuide();
+            scrollToSection($('#assistantBuilder'));
+        });
         if ($('#personalRecommendations'))
             $('#personalRecommendations').innerHTML = d.recommendations?.length
                 ? d.recommendations
@@ -1294,7 +1489,7 @@
         $$('[data-remove-pack]').forEach(
             (b) =>
                 (b.onclick = async () => {
-                    await jsonFetch('api/tourist.php', {
+                    const response = await jsonFetch('api/tourist.php', {
                         method: 'POST',
                         body: JSON.stringify({
                             action: 'remove_pack',
@@ -1304,6 +1499,8 @@
                             csrf: window.JOM.csrf
                         })
                     });
+                    if (!response.ok) return toast(await message(response, 'Could not remove pack.'));
+                    localStorage.removeItem(accountPrefix + 'pack:' + b.dataset.removePack + ':' + b.dataset.removeScenario + ':' + b.dataset.removeLanguage);
                     loadProfile();
                 })
         );
@@ -1363,12 +1560,23 @@
         }
         if (ok) {
             records = [];
+            conversationMessages = [];
+            scenarioPhrases = [];
+            invalidate();
+            ['assistDietary','assistAllergy','assistReligious','assistEmergency'].forEach((id) => {
+                const field = $('#' + id);
+                if (field) { field.value = ''; delete field.dataset.userEdited; }
+            });
+            if ($('#openSavedEmergency')) $('#openSavedEmergency').hidden = true;
+            if ($('#emergencySaveStatus')) $('#emergencySaveStatus').textContent = '';
+            resetAssistantGuide();
             for (let i = localStorage.length - 1; i >= 0; i--) {
                 const key = localStorage.key(i);
-                if (key === storageKey || key === privacyKey || key?.startsWith('jompack:'))
+                if (key?.startsWith(accountPrefix))
                     localStorage.removeItem(key);
             }
             renderRecords();
+            renderConversation();
             loadPreferences();
             loadProfile();
         }
@@ -1897,7 +2105,7 @@
         $('#applicationName').value = b.name || '';
         $('#applicationCategory').value = b.category || '';
         $('#applicationAddress').value = b.address || '';
-        $('#applicationStatus').textContent = 'Application status: ' + d.application_status + '.';
+        $('#applicationStatus').textContent = 'Application status: ' + d.application_status + '.' + (b.review_reason ? ' Reviewer feedback: ' + b.review_reason : '');
     }
     const applicationHeading = $('#application .page-heading');
     if (applicationHeading) {
@@ -2088,12 +2296,13 @@
         const d = await r.json(),
             s = d.stats;
         $('#insightTranslations').textContent = s.translations;
+        $('#insightTranslations').parentElement.querySelector('small').textContent = 'Saved translations';
         $('#insightReports').textContent = s.unclear_reports;
         $('#insightBusinesses').textContent = s.businesses;
         $('#insightPending').textContent = s.pending_businesses;
         if ($('#insightComparisons'))
             $('#insightComparisons').innerHTML =
-                comparisonCard('Translations', d.comparisons?.translations) +
+                comparisonCard('Saved translations', d.comparisons?.translations) +
                 comparisonCard('Issues needing attention', d.comparisons?.issues, false) +
                 comparisonCard('Consented activity', d.comparisons?.events);
         $('#insightEvents').innerHTML =
@@ -2161,7 +2370,7 @@
     if (insightVisual) {
         const renderInsightVisual = () => {
             insightVisual.innerHTML = metricBars([
-                { label: 'Translations', value: $('#insightTranslations').textContent },
+                { label: 'Saved translations', value: $('#insightTranslations').textContent },
                 { label: 'Needs attention', value: $('#insightReports').textContent },
                 { label: 'Approved businesses', value: $('#insightBusinesses').textContent },
                 { label: 'Pending reviews', value: $('#insightPending').textContent }
@@ -2228,6 +2437,7 @@
         $('#adminBusinesses').textContent = d.stats.businesses;
         $('#adminPending').textContent = d.stats.pending;
         $('#adminTranslations').textContent = d.stats.translations;
+        $('#adminTranslations').parentElement.querySelector('small').textContent = 'Saved translations';
         if ($('#adminPriorityCount')) $('#adminPriorityCount').textContent = d.stats.pending;
         renderAdminCharts(d);
         $('#exportAdminReport').href = 'api/admin.php?format=csv';
@@ -2262,7 +2472,7 @@
             row.area
         ]);
         $('#adminActivity').innerHTML = activityRows.length
-            ? table(['Date', 'Administrator', 'Action', 'Area'], activityRows)
+            ? table(['Date (MYT)', 'Staff member', 'Action', 'Area'], activityRows)
             : '<div class="empty-state">No administrative activity yet.</div>';
         $('#pendingBusinesses').innerHTML =
             d.pending
@@ -2274,6 +2484,7 @@
                         escapeHtml(b.category) +
                         ' · ' +
                         escapeHtml(b.email) +
+                        '</small><small>' + escapeHtml(b.full_name + ' · ' + b.address) +
                         '</small></div><span><button data-decision="approve" data-bid="' +
                         b.id +
                         '">Approve</button><button data-decision="reject" data-bid="' +
@@ -2284,26 +2495,71 @@
         $$('[data-decision]').forEach(
             (b) =>
                 (b.onclick = async () => {
-                    await jsonFetch('api/admin.php', {
+                    const reason = b.dataset.decision === 'reject' ? prompt('Why is this application being rejected? The applicant will see this reason.') : '';
+                    if (reason === null) return;
+                    if (b.dataset.decision === 'reject' && !reason.trim()) return toast('Enter a rejection reason.');
+                    b.disabled = true;
+                    try {
+                    const response = await jsonFetch('api/admin.php', {
                         method: 'POST',
                         body: JSON.stringify({
                             business_id: Number(b.dataset.bid),
                             decision: b.dataset.decision,
+                            reason,
                             csrf: window.JOM.csrf
                         })
                     });
+                    if (!response.ok) throw new Error(await message(response, 'Could not save the decision.'));
                     loadAdmin();
                     loadInsights();
+                    } catch (e) { toast(e.message); } finally { b.disabled = false; }
                 })
         );
     }
+
+    let reportBefore = 0;
+    async function loadReportReviews(before = 0) {
+        const panel = $('#reportReviews');
+        if (!panel) return;
+        try {
+            const response = await fetch('api/report_review.php?before=' + before);
+            if (!response.ok) throw new Error(await message(response, 'Could not load reports.'));
+            const rows = (await response.json()).reports;
+            reportBefore = rows.at(-1)?.id || 0;
+            $('#olderReportReviews').hidden = rows.length < 50;
+            panel.innerHTML = rows.map((row) => {
+                const history = row.reviews.map((review) => {
+                    const details = JSON.parse(review.details || '{}');
+                    return '<li>' + escapeHtml(review.created_at + ' · ' + (review.full_name || 'Former reviewer') + ' · ' + details.status + ': ' + details.note) + '</li>';
+                }).join('');
+                return '<article class="card-panel mt-large" data-review-id="' + row.id + '"><h3>Report #' + row.id + ' · ' + escapeHtml(row.status) + '</h3><p>' + escapeHtml(row.created_at + ' · ' + (names[row.source_language] || row.source_language) + ' → ' + (names[row.target_language] || row.target_language) + ' · ' + row.scenario) + '</p>' +
+                    (row.source_text === null ? '<p>Message text was not retained for this report.</p>' : '<p><strong>Original:</strong> ' + escapeHtml(row.source_text) + '</p><p><strong>Translation:</strong> ' + escapeHtml(row.translated_text) + '</p>') +
+                    '<p><strong>Reporter note:</strong> ' + escapeHtml(row.notes || 'No note supplied.') + '</p><label>Review status<select data-review-status>' + ['open','reviewing','resolved'].map((status) => '<option' + (status === row.status ? ' selected' : '') + '>' + status + '</option>').join('') + '</select></label><label>Review note<textarea data-review-note maxlength="1000" placeholder="Explain the issue and action taken"></textarea></label><button class="primary" type="button" data-review-save="' + row.id + '" data-previous="' + escapeHtml(row.status) + '">Save review</button><ul>' + history + '</ul></article>';
+            }).join('') || '<p>No reports found.</p>';
+            $$('[data-review-save]').forEach((button) => button.onclick = async () => {
+                const card = button.closest('[data-review-id]');
+                const note = card.querySelector('[data-review-note]').value.trim();
+                if (!note) return toast('Add a review note first.');
+                button.disabled = true;
+                try {
+                    const response = await jsonFetch('api/report_review.php', {method:'POST', body:JSON.stringify({id:Number(button.dataset.reviewSave), previous_status:button.dataset.previous, status:card.querySelector('[data-review-status]').value, note, csrf:window.JOM.csrf})});
+                    if (!response.ok) throw new Error(await message(response, 'Could not save review.'));
+                    toast('Review saved.');
+                    await loadReportReviews(before);
+                    await loadInsights();
+                } catch (e) { toast(e.message); } finally { button.disabled = false; }
+            });
+        } catch (e) { panel.textContent = e.message; }
+    }
+    $('#refreshReportReviews')?.addEventListener('click', () => loadReportReviews());
+    $('#olderReportReviews')?.addEventListener('click', () => loadReportReviews(reportBefore));
 
     // Start with disabled result controls, load preferences, then load module data concurrently.
     // Module loaders check whether their page/control is available before rendering.
     async function init() {
         actions(false);
         await loadPreferences();
-        await Promise.all([
+        await Promise.allSettled([
             loadRecords(),
             loadGlossary(),
             loadProfile(),
@@ -2311,7 +2567,8 @@
             loadBusiness(),
             loadBusinessApplication(),
             loadInsights(),
-            loadAdmin()
+            loadAdmin(),
+            loadReportReviews()
         ]);
         renderBusinessInbox();
     }

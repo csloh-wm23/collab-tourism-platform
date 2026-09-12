@@ -14,13 +14,12 @@ function preferences_reply(array $body, int $status = 200): never
 }
 
 $user = current_user();
-$registeredTourist =
-    $user && ($user['role'] ?? '') === 'tourist' && ($user['status'] ?? '') === 'active';
+$registeredAccount = $user && ($user['status'] ?? '') === 'active';
 
 try {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-    if (!$registeredTourist) {
+    if (!$registeredAccount) {
         if ($method === 'GET') {
             preferences_reply([
                 'ok' => true,

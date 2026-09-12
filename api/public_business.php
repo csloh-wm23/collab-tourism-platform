@@ -14,7 +14,7 @@ try {
     $slug = clean_text($_GET['slug'] ?? '', 100, true);
     $db = database();
     $stmt = $db->prepare(
-        "SELECT id,name,category,address,description,service_details,payment_methods,menu_details,facility_details,qr_slug FROM businesses WHERE qr_slug=? AND verification_status='approved' AND is_public=1 LIMIT 1",
+        "SELECT id,name,category,address,description,service_details,payment_methods,menu_details,facility_details,qr_slug FROM businesses WHERE qr_slug=? AND verification_status='approved' AND is_public=1 AND EXISTS (SELECT 1 FROM users WHERE users.id=businesses.owner_user_id AND users.status='active') LIMIT 1",
     );
     $stmt->execute([$slug]);
     $b = $stmt->fetch();

@@ -10,6 +10,10 @@ function report_reply(array $body, int $status = 200): never
     echo json_encode($body, JSON_UNESCAPED_UNICODE);
     exit();
 }
+$reporter = current_user();
+if (!$reporter || $reporter['status'] !== 'active') {
+    report_reply(['ok' => false, 'message' => 'Sign in with an active account to report a translation.'], 403);
+}
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     report_reply(['ok' => false, 'message' => 'Method not allowed.'], 405);
 }
@@ -30,12 +34,14 @@ try {
     $issue = clean_text($input['issue_type'] ?? 'unclear_translation', 80, true);
     $notes = clean_text($input['notes'] ?? '', 1000);
     $term = clean_text($input['term_label'] ?? '', 120);
-    // Reports intentionally keep only analytical dimensions and a one-way message
-    // fingerprint. They do not retain the reporter identity or conversation text.
+    // Sharing exact text is optional and requires affirmative consent for this report.
+    $share = ($input['share_text'] ?? false) === true;
     $stmt = database()->prepare(
-        'INSERT INTO translation_reports(reporter_user_id,source_text,translated_text,source_hash,source_language,target_language,scenario,confidence,issue_type,term_label,notes) VALUES(NULL,NULL,NULL,?,?,?,?,?,?,?,?)',
+        'INSERT INTO translation_reports(reporter_user_id,source_text,translated_text,source_hash,source_language,target_language,scenario,confidence,issue_type,term_label,notes) VALUES(NULL,?,?,?,?,?,?,?,?,?,?)',
     );
     $stmt->execute([
+        $share ? $source : null,
+        $share ? $translated : null,
         hash('sha256', mb_strtolower($source)),
         $from,
         $to,

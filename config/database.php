@@ -27,5 +27,7 @@ function database(): PDO
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 
+    // TIMESTAMP values use Malaysia time regardless of the host default.
+    $connection->exec("SET time_zone = '+08:00'");
     return $connection;
 }

@@ -19,6 +19,8 @@ $db = database();
 $uid = (int) $user['id'];
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 try {
+    // Older accounts/seeds may have no profile yet. Never overwrite an existing profile.
+    $db->prepare('INSERT IGNORE INTO tourist_profiles (user_id) VALUES (?)')->execute([$uid]);
     if ($method === 'GET') {
         $stmt = $db->prepare(
             'SELECT u.full_name,u.email,u.preferred_language,p.accessibility_notes,p.dietary_notes,p.allergy_notes,p.emergency_contact,p.emergency_details,p.default_destination,p.large_text,p.voice_playback FROM users u JOIN tourist_profiles p ON p.user_id=u.id WHERE u.id=?',

@@ -4,12 +4,76 @@
     else root.JomCore = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
+    function restoreConversation(row) {
+        return {
+            source: row.source, translation: row.translation, from: row.from, to: row.to,
+            scenario: row.scenario || 'culture', confidence: row.confidence ?? null,
+            confidenceSource: row.confidenceSource || '', alternatives: [], suggestions: [],
+            matchedTerms: []
+        };
+    }
+    function savedSource(row) {
+        try {
+            const metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+            return metadata?.source_text || row.title;
+        } catch (e) { return row.title; }
+    }
+    // A detected language is only valid for the exact message that was translated.
+    function spellingLanguage(text, selected, detection) {
+        if (selected !== 'auto') return selected;
+        return detection && detection.text === text.trim() ? detection.language : null;
+    }
+    // A deliberately limited typo list, not a general spellchecker. Only listed
+    // whole words are suggested; slang, names and unknown words are left alone.
+    function spellingSuggestion(text, language) {
+        const dictionaries = {
+            en: {
+                cappocino: 'cappuccino', capuccino: 'cappuccino', cappucino: 'cappuccino',
+                cappuccinoo: 'cappuccino', restarant: 'restaurant', restuarant: 'restaurant',
+                restraunt: 'restaurant', coffe: 'coffee', cofee: 'coffee',
+                vegatarian: 'vegetarian', vegeterian: 'vegetarian', alergic: 'allergic',
+                allgergy: 'allergy', accomodation: 'accommodation', accomodate: 'accommodate',
+                resevation: 'reservation', reservaton: 'reservation', tickect: 'ticket',
+                lugage: 'luggage', passsport: 'passport', emmergency: 'emergency',
+                emergancy: 'emergency', recieve: 'receive', adress: 'address',
+                seperate: 'separate', tommorow: 'tomorrow', thankyou: 'thank you'
+            },
+            ms: {
+                terimakasih: 'terima kasih', silaakn: 'silakan',
+                makann: 'makan', minumm: 'minum', makanann: 'makanan',
+                minumann: 'minuman', tempahann: 'tempahan', bayarr: 'bayar',
+                pembayran: 'pembayaran', kecemasn: 'kecemasan', kecemasaan: 'kecemasan',
+                tandass: 'tandas', stesyen: 'stesen', restoren: 'restoran',
+                restouran: 'restoran', tolongg: 'tolong'
+            }
+        };
+        const dictionary = dictionaries[language];
+        if (!dictionary) return null;
+        const original = String(text || '');
+        const corrected = original.replace(/[\p{L}\p{M}\p{N}_'-]+/gu, (word) => {
+            const replacement = dictionary[word.toLowerCase()];
+            if (!replacement) return word;
+            if (word === word.toUpperCase()) return replacement.toUpperCase();
+            if (/^[A-Z]/.test(word)) return replacement[0].toUpperCase() + replacement.slice(1);
+            return replacement;
+        });
+        return corrected !== original && corrected.length <= 500 ? corrected : null;
+    }
     function twoWayLanguages(source, target, detected) {
         return { source: target, target: source === 'auto' ? detected : source };
     }
+    function quickReplies(language) {
+        return ({
+            en: ['Yes, please.', 'No, thank you.', 'Could you repeat that?'],
+            ms: ['Ya, sila.', 'Tidak, terima kasih.', 'Boleh ulang sekali lagi?'],
+            zh: ['好的，谢谢。', '不用了，谢谢。', '可以再说一遍吗？'],
+            id: ['Ya, silakan.', 'Tidak, terima kasih.', 'Bisa diulangi?'],
+            th: ['ได้เลย', 'ไม่ ขอบคุณ', 'ช่วยพูดอีกครั้งได้ไหม']
+        })[language] || [];
+    }
     function confidenceLabel(confidence) {
         return confidence === null || confidence === undefined
-            ? 'Translation confidence: not provided by Google'
+            ? ''
             : 'Confidence: ' + Math.round(Number(confidence) * 100) + '%';
     }
     function normalizedAnalyticsLanguage(language) {
@@ -85,7 +149,12 @@
         };
     }
     return {
+        restoreConversation,
+        savedSource,
+        spellingLanguage,
+        spellingSuggestion,
         twoWayLanguages,
+        quickReplies,
         confidenceLabel,
         normalizedAnalyticsLanguage,
         speechRecognitionLanguage,

@@ -76,7 +76,7 @@ try {
             );
         }
 
-        if ($type === 'translation' && ($user['role'] ?? '') === 'tourist') {
+        if ($type === 'translation') {
             $preference = $db->prepare(
                 "SELECT is_granted FROM consent_records WHERE user_id=? AND consent_type='save_translation_history' ORDER BY recorded_at DESC, id DESC LIMIT 1",
             );
@@ -93,8 +93,11 @@ try {
             }
         }
 
+        // Keep the complete original separately from the short list title.
+        $recordMetadata = is_array($input['metadata'] ?? null) ? $input['metadata'] : [];
+        $recordMetadata['source_text'] = clean_text($title, 500, true);
         $metadata = json_encode(
-            $input['metadata'] ?? new stdClass(),
+            $recordMetadata,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
         );
         $from = isset($input['source_language'])
@@ -151,6 +154,8 @@ try {
     }
 
     reply(['ok' => false, 'message' => 'Method not allowed.'], 405);
+} catch (InvalidArgumentException $e) {
+    reply(['ok' => false, 'message' => $e->getMessage()], 422);
 } catch (Throwable $e) {
     error_log($e->getMessage());
     reply(['ok' => false, 'offline' => true, 'message' => 'Database unavailable.'], 503);

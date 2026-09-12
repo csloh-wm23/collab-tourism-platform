@@ -22,7 +22,15 @@ check(failed_login_state(4)===['attempts'=>0,'lock_minutes'=>15,'locked'=>true],
 
 $requiredFiles=['index.php','business.php','config/security.php','config/admin_pdf.php','assets/js/core.js','api/translate.php','api/speech.php','api/assistance.php','api/glossary.php','api/report.php','api/analytics.php','api/tourist.php','api/profile.php','api/business.php','api/public_business.php','api/insights.php','api/admin.php','database/jomcommunicate.sql','database/migrations/20260828_document_features.sql','database/migrations/20260905_profile_picture.sql','database/migrations/20260911_business_inbox.sql'];
 foreach($requiredFiles as $file)check(is_file($root.'/'.$file),'Missing required file: '.$file);
-$all='';foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS)) as $file){$path=$file->getPathname();if($file->isFile()&&!str_contains($path,DIRECTORY_SEPARATOR.'.git'.DIRECTORY_SEPARATOR)&&!str_contains($path,DIRECTORY_SEPARATOR.'tests'.DIRECTORY_SEPARATOR))$all.=file_get_contents($path)."\n";}
+$all='';
+foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS)) as $file) {
+    $path=$file->getPathname();
+    if (!$file->isFile() || !in_array($file->getExtension(), ['php','js','css','sql'], true)) continue;
+    foreach (['.git','tests','tmp','vendor'] as $excluded) {
+        if (str_contains($path,DIRECTORY_SEPARATOR.$excluded.DIRECTORY_SEPARATOR)) continue 2;
+    }
+    $all.=file_get_contents($path)."\n";
+}
 check(!preg_match('/\bTamil\b|\bta-(?:IN|MY)\b|value=["\']ta["\']/i',$all),'Tamil remains in application files.');
 foreach(['Automatic detection','Two-way conversation','Report unclear','Indonesian','Thai','Medical','Emergency','Destination packs','Frequently asked questions','Export CSV'] as $needle)check(str_contains($all,$needle),'Missing proposal feature marker: '.$needle);
 check(str_contains($all,'dark-mode')&&str_contains($all,'jomcommunicate_theme'),'Persistent dark mode is missing.');
@@ -34,10 +42,10 @@ check(str_contains($all,"addEventListener('hashchange'")&&str_contains($all,"his
 check(!str_contains($all,"'confidence'=>0.92")&&!str_contains($all,'Number(data.confidence||0)'),'A fabricated translation confidence remains.');
 check(str_contains($all,'not_provided_by_google')&&str_contains($all,'confidenceLabel'),'Truthful translation-confidence handling is missing.');
 check(str_contains($all,'twoWayLanguages')&&contains_code($all,"source==='auto'?detected:source"),'Automatic-source two-way switching is not covered.');
-check(contains_code($all,'prepareNextTwoWayTurn(current,from)')&&contains_code($all,"direction={source:current.to,target:current.from}"),'Two-way mode must switch the next speaker back to the previous language.');
+check(contains_code($all,'prepareNextTwoWayTurn(exchange,from)')&&contains_code($all,"direction={source:current.to,target:current.from}"),'Two-way mode must switch the next speaker using the completed exchange snapshot.');
 check(str_contains($all,'speechRecognitionLanguage')&&str_contains($all,'recoverableSpeechError'),'Continuous automatic-language voice input is not covered.');
 check(str_contains($all,'guest_preferences')&&str_contains($all,"consent_type='anonymous_analytics'"),'Server-side analytics consent verification is missing.');
-check(str_contains($all,'source_hash')&&str_contains($all,'VALUES(NULL,NULL,NULL'),'Anonymous issue reporting is incomplete.');
+check(str_contains($all,'source_hash')&&contains_code($all,"\$share ? \$source : null")&&contains_code($all,"\$share ? \$translated : null"),'Reports must omit unconsented message text.');
 check(str_contains($all,'business_profile_translations')&&str_contains($all,'toggle_item')&&str_contains($all,'update_item'),'Multilingual editable business content is incomplete.');
 check(str_contains($all,'resubmit_application'),'Rejected business application resubmission is missing.');
 $index=file_get_contents($root.'/index.php');

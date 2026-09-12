@@ -6,6 +6,7 @@ header('Cache-Control: no-store');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/admin_pdf.php';
+require_once __DIR__ . '/../config/validation.php';
 
 function reply(array $body, int $status = 200): never
 {
@@ -79,7 +80,7 @@ function admin_dataset(PDO $db): array
         'users_by_role' => $usersByRole,
         'businesses_by_status' => $businessesByStatus,
         'recent_activity' => $recentActivity,
-        'generated_at' => date(DATE_ATOM),
+        'generated_at' => (new DateTimeImmutable('now', new DateTimeZone('Asia/Kuala_Lumpur')))->format(DATE_ATOM),
     ];
 }
 
@@ -102,7 +103,7 @@ function export_admin_csv(array $data): never
     fputcsv($output, ['Active users', $data['stats']['users']]);
     fputcsv($output, ['Approved businesses', $data['stats']['businesses']]);
     fputcsv($output, ['Pending reviews', $data['stats']['pending']]);
-    fputcsv($output, ['Translations', $data['stats']['translations']]);
+    fputcsv($output, ['Saved translations', $data['stats']['translations']]);
 
     fputcsv($output, []);
     fputcsv($output, ['User accounts by role']);
@@ -133,7 +134,7 @@ function export_admin_csv(array $data): never
 
     fputcsv($output, []);
     fputcsv($output, ['Recent administrative activity']);
-    fputcsv($output, ['Date', 'Administrator', 'Action', 'Area']);
+    fputcsv($output, ['Date (MYT)', 'Staff member', 'Action', 'Area']);
     foreach ($data['recent_activity'] as $row) {
         fputcsv($output, [$row['created_at'], $row['administrator'], $row['action'], $row['area']]);
     }
@@ -188,6 +189,8 @@ try {
     }
 
     // Lock the application during review so concurrent decisions cannot overwrite each other.
+    $reason = clean_text($input['reason'] ?? '', 1000);
+    if ($decision === 'reject' && $reason === '') reply(['ok' => false, 'message' => 'Give the applicant a reason for rejection.'], 422);
     // Business status, owner status and the audit record are saved as one transaction.
     $db->beginTransaction();
     $stmt = $db->prepare(
@@ -216,10 +219,13 @@ try {
         (int) $admin['id'],
         'Business registration ' . $decision,
         'Registrations',
-        json_encode(['business_id' => $id, 'decision' => $decision]),
+        json_encode(['business_id' => $id, 'decision' => $decision, 'reason' => $reason]),
     ]);
     $db->commit();
     reply(['ok' => true]);
+} catch (InvalidArgumentException $exception) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
+    reply(['ok' => false, 'message' => $exception->getMessage()], 422);
 } catch (Throwable $exception) {
     if (isset($db) && $db->inTransaction()) {
         $db->rollBack();

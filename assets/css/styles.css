@@ -905,6 +905,13 @@ textarea {
     column-gap: 20px;
     grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
 }
+.spelling-suggestion {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+}
+.spelling-suggestion p {
+    margin: 0 0 8px;
+}
 .language-row > label {
     margin-bottom: 0;
 }
@@ -1129,13 +1136,13 @@ textarea {
     transform: translateY(-1px);
 }
 .primary {
-    background: var(--brand);
-    border: 1px solid var(--brand);
+    background: #007f73;
+    border: 1px solid #007f73;
     color: #fff;
 }
 .primary-link {
-    background: var(--brand);
-    border: 1px solid var(--brand);
+    background: #007f73;
+    border: 1px solid #007f73;
     color: #fff;
 }
 .secondary,
@@ -1240,6 +1247,24 @@ button:disabled {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+}
+.record-item > .saved-message-open {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+.saved-message-open:hover strong {
+    text-decoration: underline;
+}
+.saved-message-open:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 4px;
 }
 .record-item > span button {
     align-items: center;
@@ -1932,6 +1957,20 @@ html:not(.dark-mode) .public-topbar .secondary {
     grid-template-columns: minmax(340px, 0.85fr) minmax(480px, 1.15fr);
     min-height: 100vh;
 }
+/* The desktop columns need at least 820px; use the compact brand below that. */
+@media (max-width: 980px) {
+    .auth-body { display: block; }
+    .auth-body .auth-showcase { display: none; }
+    .auth-main { min-width: 0; padding: 34px 20px 50px; }
+    .auth-card { min-width: 0; width: 100%; }
+    .auth-body .auth-mobile-brand {
+        display: flex; align-items: center; gap: 10px;
+        color: var(--ink-strong); text-decoration: none; font-weight: 800;
+        margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--line);
+    }
+    .auth-mobile-brand small { display: block; color: var(--muted); font-weight: 500; }
+    .auth-card > .brand-inline { display: none; }
+}
 .auth-showcase {
     background:
         radial-gradient(circle at 85% 14%, rgba(94, 234, 212, 0.26), transparent 16rem),
@@ -2478,6 +2517,10 @@ footer {
     .language-row {
         grid-template-columns: 1fr;
         row-gap: 12px;
+    }
+    /* The grid already separates the swap control from the destination label. */
+    .language-row > label:last-child {
+        margin-top: 0;
     }
     .swap-button {
         margin: 0 auto;

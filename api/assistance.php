@@ -4,6 +4,12 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/validation.php';
+require_once __DIR__ . '/../config/auth.php';
+$viewer = current_user();
+if (!$viewer || $viewer['status'] !== 'active') {
+    http_response_code(403);
+    exit(json_encode(['ok' => false, 'message' => 'Sign in with an active account to use travel guides.']));
+}
 function assistance_translate_batch(array $texts, string $source, string $target): array
 {
     if (!$texts || $source === $target) {

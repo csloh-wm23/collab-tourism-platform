@@ -30,8 +30,8 @@ $staff = in_array($role, ['editor', 'admin'], true) && ($user['status'] ?? '') =
 function language_options(bool $includeAutomatic = false): string
 {
     $languages = ($includeAutomatic ? ['auto' => 'Automatic detection'] : []) + [
-        'en' => 'English',
         'ms' => 'Bahasa Malaysia',
+        'en' => 'English',
         'zh' => 'Mandarin Chinese',
         'id' => 'Indonesian',
         'th' => 'Thai',
@@ -139,7 +139,6 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                 <?= nav_button('profile', 'Profile & settings', 'profile') ?>
             <?php endif; ?>
         </nav>
-        <div class="sidebar-foot"><span class="status-dot"></span><span><strong>Services connected</strong><small>Translation and travel tools ready</small></span></div>
     </aside>
 
     <button id="sidebarBackdrop" class="sidebar-backdrop" type="button" aria-label="Close navigation" tabindex="-1"></button>
@@ -243,6 +242,10 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                             true,
                         ) ?></select></label><button id="swapLanguages" class="swap-button" type="button" aria-label="Swap languages">⇄</button><label>To<select id="targetLanguage"><?= language_options() ?></select></label></div>
                         <textarea id="sourceText" class="message-input" maxlength="500" rows="6" placeholder="Type what you want to say…" aria-label="Message to translate"></textarea>
+                        <div id="spellingSuggestion" class="meta-box spelling-suggestion" hidden>
+                            <p role="status">Did you mean: <strong id="suggestedSpelling"></strong>?</p>
+                            <div class="button-row"><button id="useSpellingSuggestion" type="button" class="secondary">Use suggestion</button><button id="dismissSpellingSuggestion" type="button" class="secondary">Keep original</button></div>
+                        </div>
                         <div class="field-footer">
                             <div class="voice-controls">
                                 <button id="listenInput" class="voice-start" type="button" aria-pressed="false">
@@ -267,7 +270,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                             ? 'Ready to play, copy or save.'
                             : 'Ready to play or copy.' ?></p></div>
                         <div id="translationResult" class="translation-result">Your translation will appear here.</div>
-                        <div id="translationMeta" class="meta-box">Language and confidence appear after translation.</div>
+                        <div id="translationMeta" class="meta-box">Detected language appears after translation.</div>
                         <div id="translationAlternatives" class="record-list"></div>
                         <div class="button-row result-actions"><button id="speakResult" class="secondary" disabled>Voice</button><button id="copyResult" class="secondary" disabled>Copy</button><?php if (
                             $user
@@ -281,11 +284,11 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                 <p class="auth-foot">Want more features? <a href="register.php">Register now!</a></p>
                 <?php endif; ?>
 <?php if ($user): ?>
-                <article class="card-panel conversation-panel mt-large">
+                <article class="card-panel conversation-panel mt-large" hidden>
                     <div class="card-title-row"><div><span class="eyebrow">Conversation mode</span><h2>Conversation timeline</h2><p>Keep both sides of the conversation together with replay and retry controls.</p></div><button id="clearConversation" class="secondary" type="button">Clear conversation</button></div>
                     <div id="conversationTimeline" class="conversation-timeline" aria-live="polite"><div class="empty-state">Your translated messages will appear here in order.</div></div>
                 </article>
-                <div class="resource-grid mt-large"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Local context</span><h2>Malaysian terminology</h2></div></div><div id="glossaryList" class="record-list"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Your library</span><h2>Saved communication</h2></div></div><div id="recentTranslations" class="record-list"></div><h3>Favourites</h3><div id="savedPhrases" class="record-list"></div></article></div>
+                <div class="resource-grid mt-large"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Local context</span><h2>Malaysian terminology</h2></div></div><div id="glossaryList" class="record-list"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Your library</span><h2>Saved communication</h2></div></div><p class="muted">Showing up to 8 recent translations and 20 favourites from your latest 100 saved items.</p><div id="recentTranslations" class="record-list"></div><h3>Favourites</h3><div id="savedPhrases" class="record-list"></div></article></div>
 <?php endif; ?>
             </section>
 
@@ -295,7 +298,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
                 <div class="assistant-progress" aria-label="Travel assistant steps"><span class="active" id="assistantStepOne"><b>1</b>Choose a situation</span><i></i><span id="assistantStepTwo"><b>2</b>Build your guide</span><i></i><span id="assistantStepThree"><b>3</b>Use or save phrases</span></div>
                 <div class="situation-picker" role="group" aria-label="Choose a travel situation"><button type="button" data-scenario-choice="restaurant"><span>🍽</span>Restaurant</button><button type="button" data-scenario-choice="hotel"><span>▤</span>Hotel</button><button type="button" data-scenario-choice="transport"><span>➜</span>Transport</button><button type="button" data-scenario-choice="shopping"><span>◇</span>Shopping</button><button type="button" data-scenario-choice="medical"><span>＋</span>Medical</button><button class="emergency-choice" type="button" data-scenario-choice="emergency"><span>!</span>Emergency</button></div>
                 <div class="assistant-layout">
-                    <article class="card-panel assistant-builder" id="assistantBuilder" hidden><div class="card-kicker"><span>✦</span><div><h2>Situation guide</h2><p>Build a useful phrase pack for your next stop.</p></div></div><div class="form-grid three-columns"><label>Situation<select id="scenarioSelect"><option value="restaurant">Restaurant</option><option value="hotel">Hotel check-in</option><option value="transport">Transportation</option><option value="shopping">Shopping</option><option value="medical">Medical</option><option value="emergency">Emergency</option></select></label><label>Destination<input id="packDestination" value="Malaysia" maxlength="120"></label><label>Phrase language<select id="assistantLanguage"><option value="en">English</option><option value="ms" selected>Bahasa Malaysia</option><option value="zh">Mandarin Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></label></div><div class="button-row"><button id="loadScenario" class="primary">Build my guide</button><button id="saveDestinationPack" class="secondary" hidden>Save phrase pack</button></div><div id="packStatus" class="meta-box">Choose your destination and language, then build the guide.</div><div id="scenarioSteps" class="scenario-steps" hidden></div></article>
+                    <article class="card-panel assistant-builder" id="assistantBuilder" hidden><div class="card-kicker"><span>✦</span><div><h2>Situation guide</h2><p>Build a useful phrase pack for your next stop.</p></div></div><div class="form-grid three-columns"><label>Situation<select id="scenarioSelect"><option value="restaurant">Restaurant</option><option value="hotel">Hotel check-in</option><option value="transport">Transportation</option><option value="shopping">Shopping</option><option value="medical">Medical</option><option value="emergency">Emergency</option></select></label><label>Destination<input id="packDestination" value="Malaysia" maxlength="120"></label><label>Phrase language<select id="assistantLanguage"><option value="ms" selected>Bahasa Malaysia</option><option value="en">English</option><option value="zh">Mandarin Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></label></div><div class="button-row"><button id="loadScenario" class="primary">Build my guide</button><button id="saveDestinationPack" class="secondary" hidden>Save phrase pack</button></div><div id="packStatus" class="meta-box">Choose your destination and language, then build the guide.</div><p class="muted">Saved guides work offline while this page stays open. Loading the website again needs a connection.</p><div id="scenarioSteps" class="scenario-steps" hidden></div></article>
                     <article class="card-panel needs-card"><div class="card-kicker"><span>♥</span><div><h2>Needs & emergency card</h2><p>Keep essential information easy to show.</p></div></div><div class="form-grid two-columns"><label>Dietary requirement<input id="assistDietary" maxlength="500" placeholder="Vegetarian, halal…"></label><label>Allergies<input id="assistAllergy" maxlength="500" placeholder="Peanuts, medicine…"></label><label>Religious requirement<input id="assistReligious" maxlength="500" placeholder="No pork or alcohol…"></label><label>Spice level<select id="assistSpice"><option>Mild</option><option>Medium</option><option>Spicy</option><option>Not spicy</option></select></label></div><button id="prepareNeeds" class="secondary">Prepare restaurant request</button><div class="divider"></div><label>Emergency details<textarea id="assistEmergency" maxlength="500" rows="3" placeholder="Name, condition and a trusted contact"></textarea></label><div class="emergency-actions"><a class="danger emergency-call" href="tel:999">Call 999</a><button id="generateEmergency" class="danger" type="button">Show emergency card</button><button id="saveEmergencyCard" class="secondary" type="button">Save card on this device</button></div><button id="openSavedEmergency" class="link-button" type="button" hidden>Open saved emergency card</button><div id="emergencySaveStatus" class="meta-box">For immediate danger, call Malaysia emergency services. TourLingo does not replace emergency responders.</div><div id="culturalTips" class="meta-box"></div></article>
                 </div>
             </section>
@@ -305,7 +308,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             <section class="page" id="journey" data-title="My journey">
                 <div class="page-heading"><div><span class="eyebrow">Personal travel space</span><h1>My journey</h1><p>Saved packs and suggestions shaped around your plans.</p></div><button type="button" class="secondary" data-page="profile">Edit travel preferences</button></div>
                 <div class="journey-summary"><div><span>Preferred language</span><strong id="journeyLanguageSummary">—</strong></div><div><span>Next destination</span><strong id="journeyDestinationSummary">Not set</strong></div><div><span>Accessibility</span><strong id="journeyAccessibilitySummary">Personalised</strong></div></div>
-                <div class="grid-two journey-grid"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Saved on this device</span><h2>Destination packs</h2></div></div><div id="destinationPacks" class="record-list"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Picked for you</span><h2>Recommended phrases</h2></div></div><div id="personalRecommendations" class="scenario-steps"></div></article></div>
+                <div class="grid-two journey-grid"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Saved to your account</span><h2>Destination packs</h2></div></div><div id="destinationPacks" class="record-list"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Picked for you</span><h2>Recommended phrases</h2></div></div><div id="personalRecommendations" class="scenario-steps"></div></article></div>
             </section>
             <?php endif; ?>
 
@@ -341,9 +344,15 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 
             <?php if ($staff): ?>
             <section class="page" id="insights" data-title="Insights">
-                <div class="page-heading"><div><span class="eyebrow">Communication intelligence</span><h1>Service insights</h1><p>Understand anonymous travel communication patterns at a glance.</p></div><a id="exportInsights" class="secondary">Export CSV</a></div>
+                <div class="page-heading"><div><span class="eyebrow">Communication intelligence</span><h1>Service insights</h1><p>Review translation reports and travel communication patterns.</p></div><a id="exportInsights" class="secondary">Export CSV</a></div>
+                <p class="meta-box">Filter scope: activity and peak periods use all filters. Saved translations and unresolved reports use date, language and scenario only; location and business type are not retained. Business enquiries use date, language and business type only. Approved/pending business counts are current global totals.</p>
+                <details class="card-panel mt-large" aria-labelledby="reportReviewTitle">
+                    <summary id="reportReviewTitle">Review unclear translation reports</summary>
+                    <div class="card-title-row"><div><p>Individual reports, newest first (independent of the analytics filters below). Resolving a report does not change Google Translate.</p></div><button id="refreshReportReviews" class="secondary" type="button">Refresh reports</button></div>
+                    <div id="reportReviews"></div><button id="olderReportReviews" class="secondary" type="button" hidden>Older reports</button>
+                </details>
                 <div class="filter-panel"><div class="filter-row insight-filters"><label>From<input type="date" id="insightFrom"></label><label>To<input type="date" id="insightTo"></label><label>Language<select id="insightLanguage"><option value="">All</option><?= language_options() ?></select></label><label>Scenario<select id="insightScenario"><option value="">All</option><option value="restaurant">Restaurant</option><option value="hotel">Hotel</option><option value="transport">Transportation</option><option value="shopping">Shopping</option><option value="medical">Medical</option><option value="emergency">Emergency</option><option value="culture">Culture</option></select></label><label>Location<input id="insightLocation" maxlength="120" placeholder="All"></label><label>Business type<input id="insightBusinessType" maxlength="80" placeholder="All"></label><button id="filterInsights" class="primary">Apply filters</button></div></div>
-                <div class="stat-grid"><article><span class="stat-icon aqua">文</span><strong id="insightTranslations">—</strong><small>Translations</small></article><article><span class="stat-icon coral">!</span><strong id="insightReports">—</strong><small>Needs attention</small></article><article><span class="stat-icon blue">⌂</span><strong id="insightBusinesses">—</strong><small>Businesses</small></article><article><span class="stat-icon gold">◷</span><strong id="insightPending">—</strong><small>Pending</small></article></div>
+                <div class="stat-grid"><article><span class="stat-icon aqua">文</span><strong id="insightTranslations">—</strong><small>Saved translations</small></article><article><span class="stat-icon coral">!</span><strong id="insightReports">—</strong><small>Needs attention</small></article><article><span class="stat-icon blue">⌂</span><strong id="insightBusinesses">—</strong><small>Businesses</small></article><article><span class="stat-icon gold">◷</span><strong id="insightPending">—</strong><small>Pending</small></article></div>
                 <article class="card-panel visual-summary mt-large"><div class="card-title-row"><div><span class="eyebrow">At a glance</span><h2>Communication activity</h2></div><small>Compared with the previous matching period</small></div><div id="insightComparisons" class="comparison-grid"></div><div id="insightVisual" class="metric-bars" aria-label="Communication activity chart"></div></article>
                 <div class="grid-two mt-large"><article class="card-panel"><h2>Usage patterns</h2><div id="insightEvents"></div></article><article class="card-panel"><h2>Issues and repeated enquiries</h2><div id="insightIssues"></div><h3>Improvement recommendations</h3><div id="insightRecommendations"></div></article></div>
             </section>
@@ -352,7 +361,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
             <?php if ($role === 'admin' && $staff): ?>
             <section class="page" id="admin" data-title="Administration">
                 <div class="page-heading"><div><span class="eyebrow">Platform operations</span><h1>Administration</h1><p>Review platform health, account activity and business access.</p></div><div class="report-actions"><span id="adminReportUpdated">Live report</span><div class="export-actions"><a id="exportAdminReport" class="secondary" href="api/admin.php?format=csv">Export CSV</a><a id="exportAdminPdf" class="secondary" href="api/admin.php?format=pdf">Export PDF</a></div></div></div>
-                <div class="stat-grid"><article><span class="stat-icon aqua">◎</span><strong id="adminUsers">—</strong><small>Active users</small></article><article><span class="stat-icon blue">⌂</span><strong id="adminBusinesses">—</strong><small>Approved businesses</small></article><article><span class="stat-icon gold">◷</span><strong id="adminPending">—</strong><small>Pending review</small></article><article><span class="stat-icon coral">文</span><strong id="adminTranslations">—</strong><small>Translations</small></article></div>
+                <div class="stat-grid"><article><span class="stat-icon aqua">◎</span><strong id="adminUsers">—</strong><small>Active users</small></article><article><span class="stat-icon blue">⌂</span><strong id="adminBusinesses">—</strong><small>Approved businesses</small></article><article><span class="stat-icon gold">◷</span><strong id="adminPending">—</strong><small>Pending review</small></article><article><span class="stat-icon coral">文</span><strong id="adminTranslations">—</strong><small>Saved translations</small></article></div>
                 <div class="admin-priority mt-large"><div><span class="priority-pulse"></span><div><strong>Approval queue</strong><p><span id="adminPriorityCount">—</span> businesses are waiting for review.</p></div></div><button class="primary" type="button" data-scroll-target="pendingBusinesses">Review applications</button></div>
                 <div class="admin-report-grid mt-large"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Accounts</span><h2>Users by role</h2></div></div><div id="adminRoleReport"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Business network</span><h2>Review status</h2></div></div><div id="adminBusinessReport"></div></article></div>
                 <div class="admin-chart-grid mt-large"><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Account distribution</span><h2>Users by role</h2></div></div><div id="adminRoleChart" class="metric-bars"></div></article><article class="card-panel"><div class="card-title-row"><div><span class="eyebrow">Business pipeline</span><h2>Applications by status</h2></div></div><div id="adminBusinessChart" class="status-donut-layout"><div class="status-donut" id="adminStatusDonut"><span>0</span><small>Total</small></div><div id="adminStatusLegend" class="chart-legend"></div></div></article></div>
@@ -397,8 +406,8 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
     (string) $user['email'],
 ) ?>"></label></div><label>Preferred language<select id="accountLanguage"><?php foreach (
     [
-        'en' => 'English',
         'ms' => 'Bahasa Malaysia',
+        'en' => 'English',
         'zh' => 'Mandarin Chinese',
         'id' => 'Indonesian',
         'th' => 'Thai',
@@ -460,7 +469,7 @@ function nav_button(string $page, string $label, string $icon, bool $active = fa
 <div id="messageOverlay" class="emergency-overlay" role="dialog" aria-modal="true" aria-label="Large-screen translated message" aria-hidden="true"><button id="closeOverlay" type="button" aria-label="Close message">×</button><strong id="overlaySource"></strong><strong id="overlayTranslation"></strong><span id="overlayExtra"></span></div>
 <script>window.JOM={csrf:<?= json_encode(csrf_token()) ?>,authenticated:<?= $user
     ? 'true'
-    : 'false' ?>,role:<?= json_encode($role) ?>};</script>
+    : 'false' ?>,userId:<?= json_encode($user ? (int) $user['id'] : null) ?>,role:<?= json_encode($role) ?>};</script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>if(!window.QRCode){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"><\/script>');}</script>
 <script src="assets/js/core.js?v=<?= rawurlencode(

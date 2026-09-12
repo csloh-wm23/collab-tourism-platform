@@ -34,7 +34,7 @@ Text-to-Speech voices:
 
 ### Real-Time Tourism Communication
 
-Text and voice translation, automatic text-language detection, two-way mode, scenario selection, curated alternative/context suggestions, Malaysian terminology, unclear-translation reporting and a large-screen message display. Browser speech recognition requires the speaker to choose the spoken language. Google Cloud Translation Basic does not provide a confidence score, so the interface says that it is unavailable instead of inventing a percentage; genuine browser voice-recognition confidence is still used for low-confidence confirmation and analysis.
+Text and voice translation, automatic text-language detection, two-way mode, scenario selection, curated alternative/context suggestions, Malaysian terminology, unclear-translation reporting and a large-screen message display. Browser speech recognition requires the speaker to choose the spoken language. Google Cloud Translation Basic does not provide a confidence score, so the interface omits an unavailable score instead of inventing a percentage; genuine browser voice-recognition confidence is still used for low-confidence confirmation and analysis.
 
 ### Smart Tourism Assistance
 
@@ -50,7 +50,7 @@ Guest and registered access, dedicated profile management with validated JPG/PNG
 
 ### Communication Intelligence
 
-Anonymous, server-verified consent analysis for languages, scenarios, unclear and low-confidence voice input, terms, locations, business types, peak periods and repeated free-form enquiries. Editor/admin reports include date/language/scenario/location/business-type filters, complete multi-section CSV export and data-specific improvement recommendations. Translation issue reports retain analytical dimensions and a one-way text fingerprint, not reporter identity or conversation text.
+Server-verified consent analysis covers languages, scenarios, voice-input issues, terms, locations, business types, peak periods and repeated enquiries. Insights and CSV exports explicitly describe which filters each dataset supports; saved translations are not presented as a count of all translation requests. Editors and admins can open **Insights → Review unclear translation reports**, read reporter notes, change status and record a review note. Exact source/translated text is retained only after the reporter explicitly agrees for that report. Legacy/unshared reports have no retained text. Reports omit reporter identity; resolving one does not retrain or modify Google Translate.
 
 Administrators also have a live operational report for user status by role, business-review status, recent audit activity and pending approvals. The full administration report exports as either an Excel-friendly CSV or a polished multi-page PDF.
 
@@ -58,10 +58,20 @@ Administrators also have a live operational report for user status by role, busi
 
 - Tourist accounts become active immediately.
 - Business accounts require administrator approval.
-- Editors and administrators can view anonymous intelligence; administrators manage business approvals.
+- Editors and administrators can view insights and review translation reports; administrators manage business approvals with actionable rejection feedback.
 - Passwords use PHP password hashing, writes use CSRF protection, database operations use prepared statements, and protected requests reload current account status.
 - Five failed password attempts lock the account for 15 minutes. A successful login resets the counter.
 - CAPTCHA and registration-spam protection are intentionally outside this demo's requested scope.
+
+### Browser storage and offline limits
+
+Personal browser caches are scoped to the signed-in account. History consent controls conversation persistence; deleting journey data clears that account's local conversation, emergency card and phrase packs as well as server journey data. Old shared browser caches have no reliable owner and are discarded on upgrade, not assigned to the next account. Server-saved records are preserved; legacy records whose source was already truncated cannot be reconstructed. New records retain the full original in `metadata.source_text` while keeping a short list title.
+
+Saved destination packs can be opened from My journey. Cached guides work without a connection while the page is already loaded; this is not an installed offline app and a fresh page load still needs the server. Public visitors retain separate question receipts on their browser so sending another question does not replace an earlier reply.
+
+### Regression checks
+
+Run `php tests/run.php`, `node tests/frontend.js`, `node tests/state-regressions.mjs`, `php tests/database.php`, and `php tests/pdf.php` for application/state/schema/export checks. `node tests/audit-regressions.mjs` is a mutating integration suite restricted to the disposable audit instance at `http://127.0.0.1:8097/`; do not point it at production. It expects the existing demo accounts and records fictional report reviews in the audit database.
 
 Create the first administrator from a terminal:
 
