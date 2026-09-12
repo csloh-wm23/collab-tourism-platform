@@ -823,7 +823,7 @@
         toast('Conversation cleared.');
     });
     let overlayReturnFocus = null;
-    function openOverlay(source, translation, extra = '') {
+    function openOverlay(source, translation, extra = '', emergency = false) {
         const overlay = $('#messageOverlay');
         if (!overlay) return;
         overlayReturnFocus =
@@ -831,6 +831,8 @@
         $('#overlaySource').textContent = source;
         $('#overlayTranslation').textContent = translation;
         $('#overlayExtra').textContent = extra;
+        // Reset the colour on every opening so ordinary messages stay black.
+        overlay.classList.toggle('is-emergency', emergency);
         overlay.classList.add('open');
         overlay.setAttribute('aria-hidden', 'false');
         $('#closeOverlay')?.focus();
@@ -1023,33 +1025,42 @@
 
     async function loadGlossary() {
         if (!window.JOM.authenticated || !$('#glossaryList')) return;
-        const r = await fetch('api/glossary.php');
-        if (!r.ok) return;
-        const terms = (await r.json()).terms;
-        $('#glossaryList').innerHTML = terms
-            .map(
-                (t) =>
-                    '<button class="record-item term-button" data-term="' +
-                    escapeHtml(t.term) +
-                    '"><div><strong>' +
-                    escapeHtml(t.term) +
-                    '</strong><small>' +
-                    escapeHtml(t.explanation) +
-                    '</small></div><span class="pill">' +
-                    escapeHtml(t.category) +
-                    '</span></button>'
-            )
-            .join('');
-        $$('[data-term]').forEach(
-            (b) =>
-                (b.onclick = () =>
-                    track(
-                        'difficult_term',
-                        $('#targetLanguage').value,
-                        translationScenario,
-                        b.dataset.term
-                    ))
-        );
+        try {
+            const r = await fetch('api/glossary.php');
+            if (!r.ok) throw new Error('Glossary request failed');
+            const terms = (await r.json()).terms;
+            if (!Array.isArray(terms)) throw new Error('Invalid glossary response');
+            if (!terms.length) {
+                $('#glossaryList').innerHTML = '<p class="empty-state">No terminology is available yet.</p>';
+                return;
+            }
+            $('#glossaryList').innerHTML = terms
+                .map(
+                    (t) =>
+                        '<button class="record-item term-button" data-term="' +
+                        escapeHtml(t.term) +
+                        '"><div><strong>' +
+                        escapeHtml(t.term) +
+                        '</strong><small>' +
+                        escapeHtml(t.explanation) +
+                        '</small></div><span class="pill">' +
+                        escapeHtml(t.category) +
+                        '</span></button>'
+                )
+                .join('');
+            $$('[data-term]').forEach(
+                (b) =>
+                    (b.onclick = () =>
+                        track(
+                            'difficult_term',
+                            $('#targetLanguage').value,
+                            translationScenario,
+                            b.dataset.term
+                        ))
+            );
+        } catch (error) {
+            $('#glossaryList').innerHTML = '<p class="empty-state" role="status">Terminology could not be loaded. Please refresh the page to try again.</p>';
+        }
     }
     function assistanceCacheKey(destination = $('#packDestination').value.trim() || 'Malaysia') {
         return (
@@ -1296,7 +1307,8 @@
         openOverlay(
             card.source,
             card.translation,
-            'Malaysia emergency number: 999 · Call emergency services for immediate danger.'
+            'Malaysia emergency number: 999 · Call emergency services for immediate danger.',
+            true
         );
     }
     async function buildEmergencyCard() {

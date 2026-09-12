@@ -1,0 +1,15 @@
+Options -Indexes
+
+# Apache deployment: never serve local secrets, source history or maintenance data.
+RewriteEngine On
+RewriteRule (^|/)\. - [F,L]
+RewriteRule ^(?:config|database|scripts|src|tests|tmp)(?:/|$) - [F,L,NC]
+RewriteRule \.(?:log|sql|md|bak|ini|ya?ml)$ - [F,L,NC]
+RewriteRule ^request\.json$ - [F,L,NC]
+RewriteRule ^uploads/.*\.(?:php[0-9]*|phtml|phar|cgi|pl|shtml)(?:/|$) - [F,L,NC]
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

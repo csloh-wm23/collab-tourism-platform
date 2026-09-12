@@ -35,7 +35,15 @@ jobs:
         run: php tests/run.php
       - name: Frontend behaviour checks
         run: node tests/frontend.js
+      - name: Translation object and validation checks
+        run: php tests/translation.php
+      - name: Glossary loading checks
+        run: node tests/glossary.js
+      - name: Emergency overlay checks
+        run: node tests/emergency-overlay.js
       - name: Database checks
         run: php tests/database.php
+      - name: Security regression checks
+        run: php tests/security.php
       - name: Guest HTTP smoke tests
         run: bash tests/smoke.sh

@@ -5,6 +5,12 @@ CREATE TABLE IF NOT EXISTS users (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(120) NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
+  email_identity VARCHAR(190) GENERATED ALWAYS AS (
+    CASE WHEN SUBSTRING_INDEX(LOWER(TRIM(email)), '@', -1) IN ('gmail.com', 'googlemail.com')
+    THEN CONCAT(REPLACE(SUBSTRING_INDEX(SUBSTRING_INDEX(LOWER(TRIM(email)), '@', 1), '+', 1), '.', ''), '@gmail.com')
+    ELSE LOWER(TRIM(email)) END
+  ) STORED,
+  UNIQUE KEY uq_users_email_identity (email_identity),
   password_hash VARCHAR(255) NOT NULL,
   role ENUM('tourist','business','editor','admin') NOT NULL DEFAULT 'tourist',
   status ENUM('active','pending','suspended') NOT NULL DEFAULT 'active',

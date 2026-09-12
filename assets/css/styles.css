@@ -1966,6 +1966,9 @@ html:not(.dark-mode) .public-topbar .secondary {
     text-align: center;
     z-index: 100;
 }
+.emergency-overlay.is-emergency {
+    background: #b91c1c;
+}
 .emergency-overlay.open {
     display: flex;
 }

@@ -79,7 +79,7 @@ function csrf_token(): string
     return (string) $_SESSION['csrf'];
 }
 
-function verify_csrf(?string $token): bool
+function verify_csrf(mixed $token): bool
 {
     return is_string($token) && hash_equals(csrf_token(), $token);
 }

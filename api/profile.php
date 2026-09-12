@@ -6,6 +6,7 @@ header('Cache-Control: no-store');
 
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/validation.php';
+require_once __DIR__ . '/../config/email.php';
 
 function profile_reply(array $body, int $status = 200): never
 {
@@ -172,8 +173,8 @@ try {
             profile_reply(['ok' => false, 'message' => 'Enter a valid email address.'], 422);
         }
 
-        $duplicate = $db->prepare('SELECT id FROM users WHERE email=? AND id<>? LIMIT 1');
-        $duplicate->execute([$email, $userId]);
+        $duplicate = $db->prepare('SELECT id FROM users WHERE email_identity=? AND id<>? LIMIT 1');
+        $duplicate->execute([email_identity($email), $userId]);
         if ($duplicate->fetchColumn()) {
             profile_reply(
                 ['ok' => false, 'message' => 'That email address is already registered.'],
@@ -235,6 +236,9 @@ try {
 } catch (InvalidArgumentException $exception) {
     profile_reply(['ok' => false, 'message' => $exception->getMessage()], 422);
 } catch (Throwable $exception) {
+    if ($exception instanceof PDOException && $exception->getCode() === '23000') {
+        profile_reply(['ok' => false, 'message' => 'That email address is already registered.'], 409);
+    }
     error_log('Profile update error: ' . $exception->getMessage());
     profile_reply(['ok' => false, 'message' => 'Could not update your profile.'], 500);
 }

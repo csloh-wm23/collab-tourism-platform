@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!verify_csrf($_POST['csrf'] ?? null)) {
         $error = 'Your form session expired. Please try again.';
-    } elseif ($values['full_name'] === '' || !filter_var($values['email'], FILTER_VALIDATE_EMAIL)) {
+    } elseif ($values['full_name'] === '' || strlen($values['email']) > 190 || !filter_var($values['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'Enter your name and a valid email address.';
     } elseif (strlen($password) < 8) {
         $error = 'Password must be at least 8 characters.';

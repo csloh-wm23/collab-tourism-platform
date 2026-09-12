@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/auth.php';
 require_once __DIR__ . '/config/security.php';
+require_once __DIR__ . '/config/email.php';
 
 if (is_logged_in()) {
     header('Location: index.php');
@@ -17,13 +18,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf'] ?? null)) {
         $error = 'Your form session expired. Please try again.';
     } else {
-        $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
+        $email = email_identity((string) ($_POST['email'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
 
         try {
             $db = database();
             $stmt = $db->prepare(
-                'SELECT id, full_name, email, password_hash, role, status, preferred_language, failed_login_attempts, locked_until FROM users WHERE email = ? LIMIT 1',
+                'SELECT id, full_name, email, password_hash, role, status, preferred_language, failed_login_attempts, locked_until FROM users WHERE email_identity = ? LIMIT 1',
             );
             $stmt->execute([$email]);
             $user = $stmt->fetch();

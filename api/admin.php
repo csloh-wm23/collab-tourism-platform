@@ -7,6 +7,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/admin_pdf.php';
 require_once __DIR__ . '/../config/validation.php';
+require_once __DIR__ . '/../config/csv.php';
 
 function reply(array $body, int $status = 200): never
 {
@@ -95,21 +96,21 @@ function export_admin_csv(array $data): never
     }
 
     fwrite($output, "\xEF\xBB\xBF");
-    fputcsv($output, ['TourLingo administration report']);
-    fputcsv($output, ['Generated', $data['generated_at']]);
-    fputcsv($output, []);
-    fputcsv($output, ['Platform summary']);
-    fputcsv($output, ['Metric', 'Value']);
-    fputcsv($output, ['Active users', $data['stats']['users']]);
-    fputcsv($output, ['Approved businesses', $data['stats']['businesses']]);
-    fputcsv($output, ['Pending reviews', $data['stats']['pending']]);
-    fputcsv($output, ['Saved translations', $data['stats']['translations']]);
+    safe_csv_row($output, ['TourLingo administration report']);
+    safe_csv_row($output, ['Generated', $data['generated_at']]);
+    safe_csv_row($output, []);
+    safe_csv_row($output, ['Platform summary']);
+    safe_csv_row($output, ['Metric', 'Value']);
+    safe_csv_row($output, ['Active users', $data['stats']['users']]);
+    safe_csv_row($output, ['Approved businesses', $data['stats']['businesses']]);
+    safe_csv_row($output, ['Pending reviews', $data['stats']['pending']]);
+    safe_csv_row($output, ['Saved translations', $data['stats']['translations']]);
 
-    fputcsv($output, []);
-    fputcsv($output, ['User accounts by role']);
-    fputcsv($output, ['Role', 'Active', 'Pending', 'Suspended', 'Total']);
+    safe_csv_row($output, []);
+    safe_csv_row($output, ['User accounts by role']);
+    safe_csv_row($output, ['Role', 'Active', 'Pending', 'Suspended', 'Total']);
     foreach ($data['users_by_role'] as $row) {
-        fputcsv($output, [
+        safe_csv_row($output, [
             ucfirst((string) $row['role']),
             $row['active'],
             $row['pending'],
@@ -118,25 +119,25 @@ function export_admin_csv(array $data): never
         ]);
     }
 
-    fputcsv($output, []);
-    fputcsv($output, ['Businesses by review status']);
-    fputcsv($output, ['Status', 'Total']);
+    safe_csv_row($output, []);
+    safe_csv_row($output, ['Businesses by review status']);
+    safe_csv_row($output, ['Status', 'Total']);
     foreach ($data['businesses_by_status'] as $row) {
-        fputcsv($output, [ucfirst((string) $row['status']), $row['total']]);
+        safe_csv_row($output, [ucfirst((string) $row['status']), $row['total']]);
     }
 
-    fputcsv($output, []);
-    fputcsv($output, ['Pending business registrations']);
-    fputcsv($output, ['Business', 'Category', 'Owner email']);
+    safe_csv_row($output, []);
+    safe_csv_row($output, ['Pending business registrations']);
+    safe_csv_row($output, ['Business', 'Category', 'Owner email']);
     foreach ($data['pending'] as $row) {
-        fputcsv($output, [$row['name'], $row['category'], $row['email']]);
+        safe_csv_row($output, [$row['name'], $row['category'], $row['email']]);
     }
 
-    fputcsv($output, []);
-    fputcsv($output, ['Recent administrative activity']);
-    fputcsv($output, ['Date (MYT)', 'Staff member', 'Action', 'Area']);
+    safe_csv_row($output, []);
+    safe_csv_row($output, ['Recent administrative activity']);
+    safe_csv_row($output, ['Date (MYT)', 'Staff member', 'Action', 'Area']);
     foreach ($data['recent_activity'] as $row) {
-        fputcsv($output, [$row['created_at'], $row['administrator'], $row['action'], $row['area']]);
+        safe_csv_row($output, [$row['created_at'], $row['administrator'], $row['action'], $row['area']]);
     }
     fclose($output);
     exit();

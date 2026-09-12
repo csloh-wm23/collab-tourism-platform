@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/validation.php';
+require_once __DIR__ . '/../config/csv.php';
 
 $user = current_user();
 if (
@@ -261,9 +262,9 @@ try {
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="jomcommunicate-anonymous-report.csv"');
         $out = fopen('php://output', 'w');
-        fputcsv($out, ['Filter scope', $filterScope]);
-        foreach ($filters as $key => $value) fputcsv($out, ['Filter', $key, $value]);
-        fputcsv($out, [
+        safe_csv_row($out, ['Filter scope', $filterScope]);
+        foreach ($filters as $key => $value) safe_csv_row($out, ['Filter', $key, $value]);
+        safe_csv_row($out, [
             'section',
             'dimension 1',
             'dimension 2',
@@ -273,7 +274,7 @@ try {
             'total/value',
         ]);
         foreach ($events as $row) {
-            fputcsv($out, [
+            safe_csv_row($out, [
                 'event',
                 $row['event_type'],
                 $row['language_code'],
@@ -284,7 +285,7 @@ try {
             ]);
         }
         foreach ($issues as $row) {
-            fputcsv($out, [
+            safe_csv_row($out, [
                 'issue',
                 $row['issue_type'],
                 $row['language_code'],
@@ -295,7 +296,7 @@ try {
             ]);
         }
         foreach ($questions as $row) {
-            fputcsv($out, [
+            safe_csv_row($out, [
                 'repeated enquiry',
                 $row['question_label'],
                 '',
@@ -306,7 +307,7 @@ try {
             ]);
         }
         foreach ($businessRows as $row) {
-            fputcsv($out, [
+            safe_csv_row($out, [
                 'business analysis',
                 $row['business_type'],
                 $row['communication_category'],
@@ -317,7 +318,7 @@ try {
             ]);
         }
         foreach ($peakRows as $row) {
-            fputcsv($out, [
+            safe_csv_row($out, [
                 'peak period',
                 $row['hour_of_day'] . ':00',
                 '',
@@ -328,7 +329,7 @@ try {
             ]);
         }
         foreach ($recommendations as $recommendation) {
-            fputcsv($out, ['recommendation', $recommendation, '', '', '', '', '']);
+            safe_csv_row($out, ['recommendation', $recommendation, '', '', '', '', '']);
         }
         fclose($out);
         exit();

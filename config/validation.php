@@ -20,7 +20,10 @@ function supported_scenarios(): array
 
 function clean_text(mixed $value, int $maximum, bool $required = false): string
 {
-    $text = trim((string) $value);
+    if (!is_string($value)) {
+        throw new InvalidArgumentException('Text must be a string.');
+    }
+    $text = trim($value);
     if ($required && $text === '') {
         throw new InvalidArgumentException('A required field is empty.');
     }
@@ -32,7 +35,10 @@ function clean_text(mixed $value, int $maximum, bool $required = false): string
 
 function clean_language(mixed $value, bool $allowAuto = false): string
 {
-    $language = (string) $value;
+    if (!is_string($value)) {
+        throw new InvalidArgumentException('Unsupported language.');
+    }
+    $language = $value;
     if (!array_key_exists($language, supported_languages($allowAuto))) {
         throw new InvalidArgumentException('Unsupported language.');
     }
@@ -41,7 +47,10 @@ function clean_language(mixed $value, bool $allowAuto = false): string
 
 function clean_scenario(mixed $value): string
 {
-    $scenario = (string) $value;
+    if (!is_string($value)) {
+        throw new InvalidArgumentException('Unsupported tourism scenario.');
+    }
+    $scenario = $value;
     if (!in_array($scenario, supported_scenarios(), true)) {
         throw new InvalidArgumentException('Unsupported tourism scenario.');
     }
