@@ -54,7 +54,8 @@ function nav_icon(string $name): string
         'home' =>
             '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
         'translate' =>
-            '<path d="M4 5h10M9 3v2c0 4-2 7-5 9"/><path d="M6 10c2 2 4 3 7 4"/><path d="m14 20 4-9 4 9m-6.5-3h5"/>',
+            // Four distinct strokes form 文; keep A separate for legibility at navigation size.
+            '<path d="m7 2 1 2M2 6h12M11 6c-1 5-4 8-9 10M5 8c1.5 3.5 4 6 8 8"/><path d="m14 22 4-10 4 10M15.5 18h5"/>',
         'compass' => '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/>',
         'journey' =>
             '<path d="M6 21V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14"/><path d="M9 5V3h6v2M4 10h16M9 13v4m6-4v4"/>',
