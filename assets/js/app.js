@@ -1154,7 +1154,9 @@
                           i +
                           '">Use</button><button class="chip" data-quick="' +
                           i +
-                          '">Quick reply</button></div>'
+                          '">Quick reply</button><button type="button" class="chip" data-assist-voice="' +
+                          i +
+                          '">Voice</button></div>'
                   )
                   .join('')
             : '<div class="empty-state">No phrases for this selection.</div>';
@@ -1174,6 +1176,21 @@
                     invalidate();
                 })
         );
+        // Play the pack's translated phrase in its language without changing the translator.
+        $$('[data-assist-voice]').forEach((button) => {
+            button.onclick = async () => {
+                const phrase = scenarioPhrases[Number(button.dataset.assistVoice)];
+                if (!phrase?.translated_text) return;
+                button.disabled = true;
+                try {
+                    await speakMessage(phrase.translated_text, language);
+                } catch (e) {
+                    toast('Speech unavailable. Please try again.');
+                } finally {
+                    button.disabled = false;
+                }
+            };
+        });
         $$('[data-quick]').forEach((b) => {
             b.onclick = () => {
                 const p = scenarioPhrases[Number(b.dataset.quick)];

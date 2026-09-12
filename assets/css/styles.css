@@ -821,6 +821,50 @@ body:not(.dark-mode) .sidebar-close {
     max-width: 760px;
 }
 
+/* Keep the review disclosure aligned with Insights cards in either theme. */
+.card-panel.report-review-panel {
+    padding: 0;
+    margin-bottom: 24px;
+}
+.report-review-summary {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 22px 24px;
+    list-style: none;
+    cursor: pointer;
+    border-radius: var(--radius);
+}
+.report-review-summary::-webkit-details-marker { display: none; }
+.report-review-summary:hover { background: var(--paper-soft); }
+.report-review-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--brand-soft);
+    color: var(--brand-dark);
+}
+.report-review-heading { display: grid; gap: 5px; min-width: 0; flex: 1; }
+.report-review-heading strong { color: var(--ink-strong); font-size: 1.08rem; }
+.report-review-heading > span { color: var(--muted); font-size: .86rem; line-height: 1.5; }
+.report-review-chevron { flex-shrink: 0; color: var(--muted); transition: transform .18s ease; }
+.report-review-panel[open] .report-review-chevron { transform: rotate(90deg); }
+.report-review-body { padding: 24px; border-top: 1px solid var(--line); }
+.report-review-body > .card-title-row { flex-wrap: wrap; gap: 16px; }
+.report-review-body > .card-title-row > div { flex: 1 1 260px; }
+.report-review-body p, .report-review-body li { overflow-wrap: anywhere; }
+.report-review-body [data-review-id] { box-shadow: none; background: var(--paper-soft); }
+.report-review-body #olderReportReviews { margin-top: 20px; }
+@media (max-width: 600px) {
+    .report-review-summary { padding: 18px; gap: 12px; }
+    .report-review-body { padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .report-review-chevron { transition: none; }
+}
+
 label {
     color: var(--ink);
     display: block;
@@ -1210,6 +1254,34 @@ button:disabled {
     margin-top: 15px;
 }
 .record-list,
+/* Approval cards reserve room for both actions; long details wrap independently. */
+#pendingBusinesses {
+    display: grid;
+    gap: 12px;
+    container-type: inline-size;
+}
+#pendingBusinesses > .record-item {
+    align-items: flex-start;
+}
+#pendingBusinesses > .record-item > div {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+#pendingBusinesses > .record-item > span {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+}
+/* Use the queue's width, not the viewport: desktop dashboard columns can be narrow too. */
+@container (max-width: 360px) {
+    #pendingBusinesses > .record-item { flex-direction: column; }
+    #pendingBusinesses > .record-item > span { align-self: flex-end; }
+}
+@media (max-width: 480px) {
+    #pendingBusinesses > .record-item { flex-direction: column; }
+    #pendingBusinesses > .record-item > span { align-self: flex-end; }
+}
 .scenario-steps {
     display: grid;
     gap: 10px;
@@ -2179,6 +2251,14 @@ footer {
     background: var(--paper-soft);
     color: var(--ink);
 }
+/* Destructive actions retain their meaning after the shared dark button styles. */
+#pendingBusinesses button[data-decision='reject'] {
+    color: #b83232;
+}
+.dark-mode #pendingBusinesses button[data-decision='reject'] {
+    color: #ff9b9b;
+    border-color: #805052;
+}
 .dark-mode .primary,
 .dark-mode .primary-link {
     background: var(--brand);
@@ -2992,6 +3072,24 @@ button,
 
 .visual-summary .card-title-row > small {
     color: var(--muted);
+}
+/* Give the activity heading its own row on phones instead of squeezing its words. */
+@media (max-width: 600px) {
+    .visual-summary .card-title-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .visual-summary .card-title-row > div {
+        width: 100%;
+        min-width: 0;
+    }
+    .visual-summary .card-title-row h2 {
+        word-break: normal;
+        overflow-wrap: normal;
+    }
+    .visual-summary .card-title-row > small {
+        text-align: left;
+    }
 }
 .metric-bars {
     display: grid;
